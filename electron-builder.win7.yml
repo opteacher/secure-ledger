@@ -1,0 +1,43 @@
+appId: "com.secure-ledger.app"
+productName: "密钥终端"
+copyright: "Copyright © 2026 SecureLedger Team"
+electronVersion: "22.3.27"
+
+directories:
+  output: "release"
+
+files:
+  - "dist/**/*"
+  - "dist-electron/**/*"
+  - "public/**/*"
+
+asar: true
+npmRebuild: false
+
+win:
+  target:
+    - target: "nsis"
+      arch: ["x64"]
+    - target: "portable"
+      arch: ["x64"]
+  icon: "public/app.ico"
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "密钥终端"
+  artifactName: "${productName}-${version}-win7-setup.${ext}"
+
+extraResources:
+  - from: "public"
+    to: "public"
+  - from: "scripts"
+    to: "scripts"
+  - from: "ttyd"
+    to: "ttyd"
+  - from: "chromiums"
+    to: "chromiums"
+  - from: "node_modules/sql.js/dist/sql-wasm.wasm"
+    to: "sql-wasm.wasm"
