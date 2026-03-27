@@ -1,0 +1,145 @@
+import { db } from '../database/init'
+import { encrypt, decrypt } from '../crypto'
+import type { Slot } from '../database/init'
+
+// 获取步骤页的所有操作槽
+export function listSlots(pageId: number): Slot[] {
+  return db.query<Slot>(
+    'SELECT * FROM slot WHERE page_id = ? ORDER BY order_index',
+    [pageId]
+  )
+}
+
+// 获取单个操作槽
+export function getSlot(id: number): Slot | null {
+  return db.queryOne<Slot>('SELECT * FROM slot WHERE id = ?', [id]) ?? null
+}
+
+// 创建操作槽
+export function createSlot(data: {
+  page_id: number
+  order_index?: number
+  name?: string
+  element_xpath: string
+  action_type: 'input' | 'click' | 'select' | 'password' | 'keyfile'
+  value: string
+  is_encrypted?: boolean
+  timeout?: number
+  masterKey?: string // 用于加密值
+}): Slot {
+  // 如果没有指定顺序，放到最后
+  if (data.order_index === undefined) {
+    const maxOrder = db.queryOne<{ max: number }>(
+      'SELECT COALESCE(MAX(order_index), -1) as max FROM slot WHERE page_id = ?',
+      [data.page_id]
+    )
+    data.order_index = (maxOrder?.max ?? -1) + 1
+  }
+
+  // 如果需要加密且有主密钥
+  let finalValue = data.value
+  if (data.is_encrypted && data.masterKey && data.value) {
+    finalValue = encrypt(data.value, data.masterKey)
+  }
+
+  const result = db.run(
+    `INSERT INTO slot (page_id, order_index, name, element_xpath, action_type, value, is_encrypted, timeout) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      data.page_id, 
+      data.order_index, 
+      data.name || '', 
+      data.element_xpath, 
+      data.action_type, 
+      finalValue, 
+      data.is_encrypted ? 1 : 0, 
+      data.timeout || 200
+    ]
+  )
+
+  return {
+    id: result.lastInsertRowid as number,
+    page_id: data.page_id,
+    order_index: data.order_index,
+    name: data.name || '',
+    element_xpath: data.element_xpath,
+    action_type: data.action_type,
+    value: finalValue,
+    is_encrypted: data.is_encrypted || false,
+    timeout: data.timeout || 200,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  }
+}
+
+// 更新操作槽
+export function updateSlot(id: number, updates: Partial<Slot> & { masterKey?: string }): boolean {
+  const fields: string[] = []
+  const values: any[] = []
+
+  if (updates.order_index !== undefined) {
+    fields.push('order_index = ?')
+    values.push(updates.order_index)
+  }
+  if (updates.name !== undefined) {
+    fields.push('name = ?')
+    values.push(updates.name)
+  }
+  if (updates.element_xpath !== undefined) {
+    fields.push('element_xpath = ?')
+    values.push(updates.element_xpath)
+  }
+  if (updates.action_type !== undefined) {
+    fields.push('action_type = ?')
+    values.push(updates.action_type)
+  }
+  if (updates.value !== undefined) {
+    // 检查是否需要加密
+    if (updates.is_encrypted && updates.masterKey) {
+      fields.push('value = ?')
+      values.push(encrypt(updates.value, updates.masterKey))
+    } else {
+      fields.push('value = ?')
+      values.push(updates.value)
+    }
+  }
+  if (updates.is_encrypted !== undefined) {
+    fields.push('is_encrypted = ?')
+    values.push(updates.is_encrypted ? 1 : 0)
+  }
+  if (updates.timeout !== undefined) {
+    fields.push('timeout = ?')
+    values.push(updates.timeout)
+  }
+
+  if (fields.length === 0) return false
+
+  fields.push('updated_at = CURRENT_TIMESTAMP')
+  values.push(id)
+
+  db.run(`UPDATE slot SET ${fields.join(', ')} WHERE id = ?`, values)
+  return true
+}
+
+// 删除操作槽
+export function deleteSlot(id: number): boolean {
+  const result = db.run('DELETE FROM slot WHERE id = ?', [id])
+  return result.changes > 0
+}
+
+// 解密操作槽的值
+export function decryptSlotValue(encryptedValue: string, masterKey: string): string {
+  return decrypt(encryptedValue, masterKey)
+}
+
+// 调整操作槽顺序
+export function reorderSlots(pageId: number, slotIds: number[]): boolean {
+  return db.transaction(() => {
+    slotIds.forEach((slotId, index) => {
+      db.run(
+        'UPDATE slot SET order_index = ? WHERE id = ? AND page_id = ?',
+        [index, slotId, pageId]
+      )
+    })
+    return true
+  })
+}

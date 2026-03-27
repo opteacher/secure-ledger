@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- 背景渐变 -->
+    <linearGradient id="lockBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="50%" style="stop-color:#1e293b"/>
+      <stop offset="100%" style="stop-color:#0f172a"/>
+    </linearGradient>
+    
+    <!-- 锁体渐变 -->
+    <linearGradient id="lockBodyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="30%" style="stop-color:#f59e0b"/>
+      <stop offset="70%" style="stop-color:#d97706"/>
+      <stop offset="100%" style="stop-color:#b45309"/>
+    </linearGradient>
+    
+    <!-- 钥匙渐变 -->
+    <linearGradient id="keyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e2e8f0"/>
+      <stop offset="50%" style="stop-color:#94a3b8"/>
+      <stop offset="100%" style="stop-color:#64748b"/>
+    </linearGradient>
+    
+    <!-- 阴影 -->
+    <filter id="lockShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="20" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+    
+    <filter id="keyGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#fbbf24" flood-opacity="0.4"/>
+    </filter>
+    
+    <!-- 高光 -->
+    <linearGradient id="lockHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.4"/>
+      <stop offset="50%" style="stop-color:#ffffff;stop-opacity:0"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- 背景 -->
+  <circle cx="256" cy="256" r="245" fill="url(#lockBg)"/>
+  
+  <!-- 装饰圆环 -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="#334155" stroke-width="1"/>
+  <circle cx="256" cy="256" r="200" fill="none" stroke="#334155" stroke-width="1" stroke-dasharray="10,5"/>
+  
+  <!-- 锁扣 -->
+  <path d="M180 220
+           C180 160 180 130 256 130
+           C332 130 332 160 332 220
+           L332 240
+           C332 240 300 235 256 235
+           C212 235 180 240 180 240
+           Z"
+        fill="none"
+        stroke="url(#lockBodyGrad)"
+        stroke-width="28"
+        stroke-linecap="round"
+        filter="url(#lockShadow)"/>
+  
+  <!-- 锁扣内部 -->
+  <path d="M195 220
+           C195 175 195 150 256 150
+           C317 150 317 175 317 220"
+        fill="none"
+        stroke="#1e293b"
+        stroke-width="14"
+        stroke-linecap="round"/>
+  
+  <!-- 锁体 -->
+  <rect x="150" y="220" width="212" height="180" rx="24" fill="url(#lockBodyGrad)" filter="url(#lockShadow)"/>
+  
+  <!-- 锁体高光 -->
+  <rect x="160" y="230" width="192" height="80" rx="16" fill="url(#lockHighlight)"/>
+  
+  <!-- 锁体边框 -->
+  <rect x="150" y="220" width="212" height="180" rx="24" fill="none" stroke="#fcd34d" stroke-width="2" stroke-opacity="0.5"/>
+  
+  <!-- 钥匙孔 -->
+  <circle cx="256" cy="300" r="28" fill="#1e293b"/>
+  <rect x="244" y="300" width="24" height="50" rx="8" fill="#1e293b"/>
+  
+  <!-- 钥匙孔内发光 -->
+  <circle cx="256" cy="300" r="20" fill="#0f172a"/>
+  <rect x="248" y="300" width="16" height="40" rx="6" fill="#0f172a"/>
+  
+  <!-- 钥匙（从孔中伸出） -->
+  <g filter="url(#keyGlow)">
+    <!-- 钥匙柄 -->
+    <ellipse cx="340" cy="340" rx="30" ry="40" fill="url(#keyGrad)" transform="rotate(-30 340 340)"/>
+    <ellipse cx="340" cy="340" rx="18" ry="25" fill="#1e293b" transform="rotate(-30 340 340)"/>
+    
+    <!-- 钥匙杆 -->
+    <rect x="275" y="305" width="80" height="16" rx="4" fill="url(#keyGrad)" transform="rotate(-30 315 313)"/>
+    
+    <!-- 钥匙齿 -->
+    <rect x="285" y="335" width="25" height="10" rx="3" fill="url(#keyGrad)" transform="rotate(-30 297 340)"/>
+    <rect x="295" y="350" width="20" height="10" rx="3" fill="url(#keyGrad)" transform="rotate(-30 305 355)"/>
+  </g>
+  
+  <!-- 锁体底部装饰 -->
+  <rect x="170" y="360" width="172" height="20" rx="6" fill="#b45309"/>
+  <rect x="175" y="365" width="162" height="10" rx="4" fill="#d97706" fill-opacity="0.5"/>
+</svg>

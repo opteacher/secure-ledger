@@ -1,0 +1,176 @@
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
+import { join } from 'path'
+import { fileURLToPath } from 'url'
+import { dirname } from 'path'
+import { initLogger, logger } from './backend/services/logger'
+import { registerAllIPCHandlers } from './backend/ipc'
+import { ensureTtyd } from './backend/services/ttyd'
+import { ensureChrome } from './backend/services/chromium'
+
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+// 开发环境检测
+const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
+const RENDERER_DIST = join(__dirname, '..')
+
+let win: BrowserWindow | null = null
+
+// 初始化日志系统（必须在最前面）
+initLogger()
+logger.info('Application starting...')
+
+// 检测数据库模块兼容性
+async function checkDatabaseModule(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    // sql.js 是纯 JS 实现，无需检查原生兼容性
+    // 只需验证能否正常加载
+    await import('sql.js')
+    return { ok: true }
+  } catch (error: any) {
+    const errorMsg = error?.message || String(error)
+    return {
+      ok: false,
+      error: `Failed to load database module: ${errorMsg}`
+    }
+  }
+}
+
+// 显示错误对话框并退出
+async function showFatalError(title: string, message: string) {
+  await dialog.showErrorBox(title, message)
+  app.quit()
+}
+
+async function createWindow() {
+  logger.info('Creating main window...')
+  
+  // 检测数据库模块兼容性
+  const dbCheck = await checkDatabaseModule()
+  if (!dbCheck.ok) {
+    logger.error('Database module check failed:', dbCheck.error)
+    await showFatalError('Secure Ledger - Startup Failed', dbCheck.error || 'Unknown error')
+    return
+  }
+  
+  win = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 1000,
+    minHeight: 700,
+    icon: join(RENDERER_DIST, 'public', 'logo.svg'),
+    title: '密钥终端 - Secure Ledger',
+    webPreferences: {
+      preload: join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+      webSecurity: false,
+      webviewTag: true
+    },
+    frame: true,
+    backgroundColor: '#0f172a', // dark-900
+    show: false
+  })
+
+  // 窗口准备好后显示
+  win.once('ready-to-show', () => {
+    win?.maximize()
+    win?.show()
+  })
+
+  // 加载页面
+  if (VITE_DEV_SERVER_URL) {
+    win.loadURL(VITE_DEV_SERVER_URL)
+    win.webContents.openDevTools()
+  } else {
+    win.loadFile(join(RENDERER_DIST, 'dist', 'index.html'))
+  }
+
+  // 初始化数据库
+  try {
+    logger.info('Initializing database...')
+    const { initializeDatabase } = await import('./backend/database/init')
+    await initializeDatabase()
+    logger.info('Database initialized successfully')
+  } catch (error: any) {
+    logger.error('Database initialization failed:', error)
+    logger.error('Error stack:', error?.stack)
+  }
+
+  // 确保 Chromium 可用（解压并注册）
+  try {
+    logger.info('Checking Chrome availability...')
+    const result = await ensureChrome()
+    if (result.installed) {
+      console.log('Chrome check success:', result.message)
+    } else {
+      console.warn('Chrome check failed:', result.message)
+    }
+  } catch (error) {
+    console.error('Chrome check error:', error)
+  }
+
+  // 确保 ttyd 可用
+  try {
+    const result = await ensureTtyd()
+    if (result.installed) {
+      console.log('ttyd check success:', result.message)
+    } else {
+      console.warn('ttyd check failed:', result.message)
+    }
+  } catch (error) {
+    console.error('ttyd check error:', error)
+  }
+
+  // 修复 Electron 在 Windows 上 alert/confirm 后焦点丢失的问题
+  // https://github.com/electron/electron/issues/19977
+  ipcMain.on('fix-focus', () => {
+    if (win && process.platform === 'win32') {
+      win.blur()
+      win.focus()
+    }
+  })
+}
+
+// 窗口关闭事件
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit()
+    win = null
+  }
+})
+
+// 应用激活事件 (macOS)
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow()
+  }
+})
+
+// 应用准备就绪
+app.whenReady().then(async () => {
+  // 处理证书错误 - 忽略所有证书验证（用于测试环境和内网环境）
+  const ses = require('electron').session.defaultSession
+  ses.setCertificateVerifyProc((request: any, callback: (verificationResult: number) => void) => {
+    callback(0) // 0 表示信任该证书
+  })
+  
+  // 先注册 IPC 处理器，再创建窗口
+  try {
+    registerAllIPCHandlers()
+    logger.info('IPC handlers registered')
+  } catch (error) {
+    logger.error('IPC handler registration failed:', error)
+  }
+  
+  await createWindow()
+})
+
+// 安全策略
+app.setAppUserModelId('com.secure-ledger.app')
+
+// 处理证书错误 - 始终忽略（用于测试环境和内网环境）
+app.commandLine.appendSwitch('ignore-certificate-errors')
+app.commandLine.appendSwitch('allow-insecure-localhost', 'true')

@@ -1,0 +1,22 @@
+{
+  "singleQuote": true,
+  "semi": false,
+  "trailingComma": "none",
+  "endOfLine": "lf",
+  "printWidth": 100,
+  "proseWrap": "never",
+  "arrowParens": "avoid",
+  "fallthrough": true,
+  "htmlWhitespaceSensitivity": "ignore",
+  "overrides": [
+    {
+      "files": ".prettierrc",
+      "options": {
+        "parser": "json"
+      }
+    }
+  ],
+  "importOrder": ["^@core/(.*)$", "^@server/(.*)$", "^@ui/(.*)$", "^[./]"],
+  "importOrderSeparation": true,
+  "importOrderSortSpecifiers": true
+}

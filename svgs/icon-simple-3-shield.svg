@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="lightBg3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fafafa"/>
+      <stop offset="100%" style="stop-color:#e5e5e5"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- 淡色圆形背景 -->
+  <circle cx="256" cy="256" r="240" fill="url(#lightBg3)"/>
+  
+  <!-- 盾牌 + 钥匙孔 - 极简 -->
+  <g fill="#1e293b">
+    <!-- 盾牌轮廓 -->
+    <path d="M256 80
+             L380 130
+             L380 280
+             Q380 360 256 440
+             Q132 360 132 280
+             L132 130
+             Z"
+          fill="none"
+          stroke="#1e293b"
+          stroke-width="28"
+          stroke-linejoin="round"/>
+    
+    <!-- 钥匙孔 -->
+    <circle cx="256" cy="240" r="35"/>
+    <rect x="244" y="240" width="24" height="70" rx="10"/>
+  </g>
+</svg>

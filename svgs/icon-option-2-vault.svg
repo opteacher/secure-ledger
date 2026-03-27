@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- 深色渐变背景 -->
+    <linearGradient id="vaultBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1f2937"/>
+      <stop offset="100%" style="stop-color:#111827"/>
+    </linearGradient>
+    
+    <!-- 金属渐变 -->
+    <linearGradient id="metalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#6b7280"/>
+      <stop offset="30%" style="stop-color:#9ca3af"/>
+      <stop offset="50%" style="stop-color:#d1d5db"/>
+      <stop offset="70%" style="stop-color:#9ca3af"/>
+      <stop offset="100%" style="stop-color:#4b5563"/>
+    </linearGradient>
+    
+    <!-- 门渐变 -->
+    <linearGradient id="doorGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#374151"/>
+      <stop offset="100%" style="stop-color:#1f2937"/>
+    </linearGradient>
+    
+    <!-- 金色渐变 -->
+    <linearGradient id="goldGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24"/>
+      <stop offset="50%" style="stop-color:#f59e0b"/>
+      <stop offset="100%" style="stop-color:#d97706"/>
+    </linearGradient>
+    
+    <!-- 阴影 -->
+    <filter id="vaultShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="15" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+    
+    <filter id="dialGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#fbbf24" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+  
+  <!-- 背景 -->
+  <circle cx="256" cy="256" r="245" fill="url(#vaultBg)"/>
+  
+  <!-- 保险箱主体 -->
+  <rect x="100" y="90" width="312" height="340" rx="20" fill="url(#metalGrad)" filter="url(#vaultShadow)"/>
+  
+  <!-- 保险箱内部阴影 -->
+  <rect x="115" y="105" width="282" height="310" rx="15" fill="url(#doorGrad)"/>
+  
+  <!-- 门框 -->
+  <rect x="120" y="110" width="272" height="300" rx="12" fill="#374151" stroke="#4b5563" stroke-width="3"/>
+  
+  <!-- 转盘外圈 -->
+  <circle cx="256" cy="260" r="80" fill="#1f2937" stroke="#4b5563" stroke-width="4"/>
+  
+  <!-- 转盘金属环 -->
+  <circle cx="256" cy="260" r="70" fill="url(#metalGrad)"/>
+  
+  <!-- 转盘刻度 -->
+  <circle cx="256" cy="260" r="60" fill="#374151" stroke="#6b7280" stroke-width="2"/>
+  
+  <!-- 刻度线 -->
+  <g stroke="#9ca3af" stroke-width="2">
+    <line x1="256" y1="205" x2="256" y2="215"/>
+    <line x1="256" y1="305" x2="256" y2="315"/>
+    <line x1="201" y1="260" x2="211" y2="260"/>
+    <line x1="301" y1="260" x2="311" y2="260"/>
+  </g>
+  
+  <!-- 转盘中心 -->
+  <circle cx="256" cy="260" r="25" fill="url(#goldGrad2)" filter="url(#dialGlow)"/>
+  
+  <!-- 转盘指针 -->
+  <polygon points="256,220 250,240 262,240" fill="#fbbf24"/>
+  
+  <!-- 把手 -->
+  <rect x="340" y="230" width="35" height="60" rx="8" fill="url(#metalGrad)"/>
+  <rect x="345" y="235" width="25" height="50" rx="5" fill="#4b5563"/>
+  
+  <!-- 铰链 -->
+  <rect x="105" y="130" width="20" height="40" rx="4" fill="#6b7280"/>
+  <rect x="105" y="350" width="20" height="40" rx="4" fill="#6b7280"/>
+  
+  <!-- 钥匙孔 -->
+  <circle cx="256" cy="360" r="12" fill="#111827"/>
+  <rect x="252" y="360" width="8" height="18" rx="2" fill="#111827"/>
+  
+  <!-- 状态指示灯 -->
+  <circle cx="180" cy="380" r="8" fill="#22c55e"/>
+  <circle cx="180" cy="380" r="5" fill="#4ade80"/>
+  
+  <!-- 品牌装饰线 -->
+  <line x1="140" y1="150" x2="220" y2="150" stroke="#6b7280" stroke-width="2"/>
+  <line x1="292" y1="150" x2="372" y2="150" stroke="#6b7280" stroke-width="2"/>
+</svg>

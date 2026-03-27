@@ -1,0 +1,58 @@
+{
+  "name": "secure-ledger",
+  "version": "1.0.0",
+  "description": "密钥终端 - 凭证管理与自动化登录平台",
+  "main": "dist-electron/main.js",
+  "homepage": "https://github.com/secure-ledger/secure-ledger",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build && electron-builder",
+    "build:win": "vue-tsc --noEmit && vite build && electron-builder --win",
+    "build:linux": "vue-tsc --noEmit && vite build && electron-builder --linux",
+    "build:linux:deb": "vue-tsc --noEmit && vite build && electron-builder --linux deb",
+    "build:linux:tar": "vue-tsc --noEmit && vite build && electron-builder --linux tar.gz",
+    "preview": "vite preview",
+    "type-check": "vue-tsc --noEmit",
+    "create-test-user": "ts-node scripts/create-test-user.ts"
+  },
+  "keywords": [
+    "password-manager",
+    "account-manager",
+    "electron",
+    "vue",
+    "typescript"
+  ],
+  "author": "SecureLedger Team",
+  "license": "MIT",
+  "dependencies": {
+    "extract-zip": "^2.0.1",
+    "pinia": "^2.1.7",
+    "puppeteer-core": "^22.0.0",
+    "sql.js": "^1.14.1",
+    "ssh2": "^1.15.0",
+    "uuid": "^9.0.0",
+    "vue": "^3.4.21",
+    "vue-router": "^4.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.17",
+    "@types/sql.js": "^1.4.10",
+    "@types/ssh2": "^1.15.0",
+    "@types/uuid": "^9.0.0",
+    "@vitejs/plugin-vue": "^5.0.4",
+    "autoprefixer": "^10.4.17",
+    "electron": "^29.0.0",
+    "electron-builder": "^24.13.3",
+    "png-to-ico": "^3.0.1",
+    "postcss": "^8.4.35",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^3.4.1",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.4",
+    "vite-plugin-electron": "^0.28.6",
+    "vite-plugin-electron-renderer": "^0.14.5",
+    "vue-tsc": "^2.0.6"
+  }
+}

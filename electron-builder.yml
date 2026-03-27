@@ -1,0 +1,81 @@
+{
+  "appId": "com.secure-ledger.app",
+  "productName": "密钥终端",
+  "copyright": "Copyright © 2026 SecureLedger Team",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "dist-electron/**/*",
+    "public/**/*"
+  ],
+  "asar": true,
+  "npmRebuild": false,
+  "win": {
+    "target": [
+      "nsis",
+      "portable"
+    ],
+    "icon": "public/app.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "密钥终端"
+  },
+  "linux": {
+    "target": [
+      {
+        "target": "deb",
+        "arch": ["x64"]
+      },
+      {
+        "target": "tar.gz",
+        "arch": ["x64"]
+      }
+    ],
+    "category": "Utility",
+    "maintainer": "SecureLedger Team",
+    "icon": "public/logo.svg",
+    "desktop": {
+      "Name": "密钥终端",
+      "Comment": "Credential management and automation platform",
+      "Categories": "Utility;Security"
+    }
+  },
+  "deb": {
+    "afterInstall": "scripts/postinst.sh",
+    "depends": ["sshpass"]
+  },
+  "mac": {
+    "target": [
+      "dmg"
+    ],
+    "icon": "public/icon-512.png"
+  },
+  "extraResources": [
+    {
+      "from": "public",
+      "to": "public"
+    },
+    {
+      "from": "scripts",
+      "to": "scripts"
+    },
+    {
+      "from": "ttyd",
+      "to": "ttyd"
+    },
+    {
+      "from": "chromiums",
+      "to": "chromiums"
+    },
+    {
+      "from": "node_modules/sql.js/dist/sql-wasm.wasm",
+      "to": "sql-wasm.wasm"
+    }
+  ]
+}

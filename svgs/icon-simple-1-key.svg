@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="lightBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8fafc"/>
+      <stop offset="100%" style="stop-color:#e2e8f0"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- 淡色圆形背景 -->
+  <circle cx="256" cy="256" r="240" fill="url(#lightBg)"/>
+  
+  <!-- 钥匙 - 简约深色 -->
+  <g fill="#1e293b">
+    <!-- 钥匙头 -->
+    <circle cx="200" cy="200" r="60" fill="none" stroke="#1e293b" stroke-width="24"/>
+    <!-- 钥匙孔 -->
+    <circle cx="200" cy="200" r="20"/>
+    <rect x="188" y="200" width="24" height="50" rx="8"/>
+    <!-- 钥匙柄 -->
+    <rect x="185" y="260" width="30" height="160" rx="15"/>
+    <!-- 钥匙齿 -->
+    <rect x="215" y="330" width="50" height="20" rx="10"/>
+    <rect x="215" y="370" width="35" height="20" rx="10"/>
+  </g>
+</svg>

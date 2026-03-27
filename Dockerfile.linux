@@ -1,0 +1,46 @@
+# 使用 Debian 10 (Buster) 以兼容旧系统 (GLIBC 2.28)
+FROM debian:10
+
+# 设置工作目录
+WORKDIR /build
+
+# 使用国内镜像加速
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
+
+# 安装构建依赖
+RUN apt-get update && apt-get install -y \
+    curl \
+    build-essential \
+    python3 \
+    libsqlite3-dev \
+    ruby ruby-dev \
+    fakeroot \
+    dpkg-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 fpm (用于构建 deb 包)
+RUN gem install fpm --no-document
+
+# 安装 Node.js 20
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# 设置环境变量
+ENV PATH=/usr/local/node/bin:$PATH
+
+# 验证 GLIBC 版本
+RUN ldd --version | head -1
+
+# 复制项目文件
+COPY . /build/
+
+# 安装依赖
+RUN npm install
+
+# 构建 Linux 版本 (包括 deb 和 tar.gz)
+RUN npm run build:linux
+
+# 输出构建结果
+CMD ["cp", "-r", "/build/release/.", "/output/"]
