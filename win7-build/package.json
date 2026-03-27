@@ -1,17 +1,13 @@
 {
   "name": "secure-ledger",
   "version": "1.0.0",
-  "description": "密钥终端 - 凭证管理与自动化登录平台",
+  "description": "密钥终端 - 凭证管理与自动化登录平台 (Windows 7 兼容版)",
   "main": "dist-electron/main.js",
   "homepage": "https://github.com/secure-ledger/secure-ledger",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build && electron-builder",
-    "build:win": "vue-tsc --noEmit && vite build && electron-builder --win",
-    "build:win7": "node win7-build/build.js",
-    "build:linux": "vue-tsc --noEmit && vite build && electron-builder --linux",
-    "build:linux:deb": "vue-tsc --noEmit && vite build && electron-builder --linux deb",
-    "build:linux:tar": "vue-tsc --noEmit && vite build && electron-builder --linux tar.gz",
+    "build": "vue-tsc --noEmit && vite build && electron-builder --config electron-builder.win7.yml --win",
+    "build:win7": "vue-tsc --noEmit && vite build && electron-builder --config electron-builder.win7.yml --win",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",
     "create-test-user": "ts-node scripts/create-test-user.ts"
@@ -28,7 +24,7 @@
   "dependencies": {
     "extract-zip": "^2.0.1",
     "pinia": "^2.1.7",
-    "puppeteer-core": "^22.0.0",
+    "puppeteer-core": "19.4.0",
     "sql.js": "^1.14.1",
     "ssh2": "^1.15.0",
     "uuid": "^9.0.0",
@@ -42,7 +38,7 @@
     "@types/uuid": "^9.0.0",
     "@vitejs/plugin-vue": "^5.0.4",
     "autoprefixer": "^10.4.17",
-    "electron": "^29.0.0",
+    "electron": "22.3.27",
     "electron-builder": "^24.13.3",
     "png-to-ico": "^3.0.1",
     "postcss": "^8.4.35",
