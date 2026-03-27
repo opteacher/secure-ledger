@@ -5,7 +5,7 @@ import { dirname } from 'path'
 import { initLogger, logger } from './backend/services/logger'
 import { registerAllIPCHandlers } from './backend/ipc'
 import { ensureTtyd } from './backend/services/ttyd'
-import { ensureChrome } from './backend/services/chromium'
+import { ensureChrome, isChromeInstalled } from './backend/services/chromium'
 
 
 const __filename = fileURLToPath(import.meta.url)
@@ -16,10 +16,18 @@ const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 const RENDERER_DIST = join(__dirname, '..')
 
 let win: BrowserWindow | null = null
+let splashWindow: BrowserWindow | null = null
 
 // 初始化日志系统（必须在最前面）
 initLogger()
 logger.info('Application starting...')
+
+// 发送启动进度到 splash 窗口
+function sendSplashProgress(message: string, progress?: number) {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send('splash:progress', { message, progress })
+  }
+}
 
 // 检测数据库模块兼容性
 async function checkDatabaseModule(): Promise<{ ok: boolean; error?: string }> {
@@ -41,6 +49,34 @@ async function checkDatabaseModule(): Promise<{ ok: boolean; error?: string }> {
 async function showFatalError(title: string, message: string) {
   await dialog.showErrorBox(title, message)
   app.quit()
+}
+
+// 创建启动界面窗口
+function createSplashWindow(): BrowserWindow {
+  const splash = new BrowserWindow({
+    width: 400,
+    height: 300,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    center: true,
+    alwaysOnTop: true,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  })
+  
+  // 加载启动界面
+  // 开发环境：从 public 目录加载
+  // 生产环境：从 dist 目录加载（vite 会复制 public 文件到 dist）
+  if (VITE_DEV_SERVER_URL) {
+    splash.loadFile(join(RENDERER_DIST, 'public', 'splash.html'))
+  } else {
+    splash.loadFile(join(RENDERER_DIST, 'dist', 'splash.html'))
+  }
+  
+  return splash
 }
 
 async function createWindow() {
@@ -74,10 +110,16 @@ async function createWindow() {
     show: false
   })
 
-  // 窗口准备好后显示
+  // 窗口准备好后显示（关闭 splash）
   win.once('ready-to-show', () => {
+    // 关闭启动界面
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.close()
+      splashWindow = null
+    }
     win?.maximize()
     win?.show()
+    logger.info('Main window shown')
   })
 
   // 加载页面
@@ -88,19 +130,39 @@ async function createWindow() {
     win.loadFile(join(RENDERER_DIST, 'dist', 'index.html'))
   }
 
+  // 修复 Electron 在 Windows 上 alert/confirm 后焦点丢失的问题
+  // https://github.com/electron/electron/issues/19977
+  ipcMain.on('fix-focus', () => {
+    if (win && process.platform === 'win32') {
+      win.blur()
+      win.focus()
+    }
+  })
+}
+
+// 后台初始化任务（不阻塞窗口显示）
+async function backgroundInit() {
   // 初始化数据库
   try {
+    sendSplashProgress('正在初始化数据库...', 20)
     logger.info('Initializing database...')
     const { initializeDatabase } = await import('./backend/database/init')
     await initializeDatabase()
     logger.info('Database initialized successfully')
+    sendSplashProgress('数据库初始化完成', 40)
   } catch (error: any) {
     logger.error('Database initialization failed:', error)
-    logger.error('Error stack:', error?.stack)
+    sendSplashProgress('数据库初始化失败', 40)
   }
 
   // 确保 Chromium 可用（解压并注册）
+  // 只在首次启动时解压，后续启动很快
   try {
+    if (isChromeInstalled()) {
+      sendSplashProgress('检查浏览器环境...', 60)
+    } else {
+      sendSplashProgress('正在安装浏览器组件...', 60)
+    }
     logger.info('Checking Chrome availability...')
     const result = await ensureChrome()
     if (result.installed) {
@@ -108,12 +170,15 @@ async function createWindow() {
     } else {
       console.warn('Chrome check failed:', result.message)
     }
+    sendSplashProgress('浏览器环境就绪', 80)
   } catch (error) {
     console.error('Chrome check error:', error)
+    sendSplashProgress('浏览器环境检查失败', 80)
   }
 
   // 确保 ttyd 可用
   try {
+    sendSplashProgress('检查终端组件...', 90)
     const result = await ensureTtyd()
     if (result.installed) {
       console.log('ttyd check success:', result.message)
@@ -123,15 +188,8 @@ async function createWindow() {
   } catch (error) {
     console.error('ttyd check error:', error)
   }
-
-  // 修复 Electron 在 Windows 上 alert/confirm 后焦点丢失的问题
-  // https://github.com/electron/electron/issues/19977
-  ipcMain.on('fix-focus', () => {
-    if (win && process.platform === 'win32') {
-      win.blur()
-      win.focus()
-    }
-  })
+  
+  sendSplashProgress('启动完成', 100)
 }
 
 // 窗口关闭事件
@@ -165,7 +223,16 @@ app.whenReady().then(async () => {
     logger.error('IPC handler registration failed:', error)
   }
   
+  // 显示启动界面
+  splashWindow = createSplashWindow()
+  
+  // 创建主窗口（但不显示）
   await createWindow()
+  
+  // 后台初始化（不阻塞窗口显示）
+  backgroundInit().catch(err => {
+    logger.error('Background init error:', err)
+  })
 })
 
 // 安全策略
