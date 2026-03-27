@@ -3,9 +3,84 @@ import { getEndpoint } from './endpoint'
 import { getMasterKey } from './account'
 import { decrypt } from '../crypto'
 import type { EndpointFull } from './endpoint'
+import type { ElementHandle } from 'puppeteer-core'
 
 // 延时函数
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+/**
+ * 等待并获取 XPath 元素（兼容 puppeteer 19.x 和 22+）
+ * 使用 any 类型以兼容不同版本的 API
+ */
+async function waitForXPath(page: any, xpath: string, timeout: number = 10000): Promise<ElementHandle | null> {
+  // puppeteer 22+ 使用 locator API
+  if (typeof page.locator === 'function') {
+    try {
+      const locator = page.locator(`xpath=${xpath}`)
+      await locator.wait({ timeout })
+      // locator API 后，使用 waitForSelector 或 evaluate 获取元素
+      const elements = await page.$x(xpath)
+      return elements[0] || null
+    } catch {
+      return null
+    }
+  }
+  
+  // puppeteer 19.x 使用 waitForXPath
+  if (typeof page.waitForXPath === 'function') {
+    try {
+      const element = await page.waitForXPath(xpath, { timeout })
+      return element
+    } catch {
+      return null
+    }
+  }
+  
+  // 降级方案：使用 waitForSelector 配合 xpath/ 前缀
+  try {
+    const selector = `xpath/${xpath}`
+    await page.waitForSelector(selector, { timeout })
+    const elements = await page.$x(xpath)
+    return elements[0] || null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 输入文本（兼容 puppeteer 19.x 和 22+）
+ */
+async function fillElement(element: ElementHandle, value: string): Promise<void> {
+  // 先点击聚焦，再清空，再输入
+  await element.click()
+  await element.focus()
+  
+  // 清空现有内容
+  await element.evaluate((el: any) => {
+    if (el.value !== undefined) {
+      el.value = ''
+    } else if (el.isContentEditable) {
+      el.textContent = ''
+    }
+  })
+  
+  // 输入新值
+  await element.type(value, { delay: 50 })
+}
+
+/**
+ * 点击元素（兼容 puppeteer 19.x 和 22+）
+ */
+async function clickElement(element: ElementHandle): Promise<void> {
+  await element.click()
+}
+
+/**
+ * 选择下拉框选项（兼容 puppeteer 19.x 和 22+）
+ */
+async function selectElement(element: ElementHandle, value: string): Promise<void> {
+  await element.select(value)
+}
 
 // 执行登录自动化
 export async function executeLogin(endpointId: number, chromePath: string): Promise<{ success: boolean; message: string }> {
@@ -38,7 +113,8 @@ export async function executeLogin(endpointId: number, chromePath: string): Prom
   try {
     // 获取页面
     const pages = await browser.pages()
-    let page = pages[0] || await browser.newPage()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let page: any = pages[0] || await browser.newPage()
 
     // 隐藏自动化特征
     await page.evaluateOnNewDocument(() => {
@@ -57,9 +133,14 @@ export async function executeLogin(endpointId: number, chromePath: string): Prom
       for (const slot of pageData.slots) {
         try {
           console.log('[Automation] Execute slot:', slot.action_type, slot.element_xpath)
-          // 使用 locator API 等待元素（新版 Puppeteer API）
-          const locator = page.locator(`xpath=${slot.element_xpath}`)
-          await locator.wait({ timeout: 10000 })
+          
+          // 使用兼容函数等待元素
+          const element = await waitForXPath(page, slot.element_xpath, 10000)
+          
+          if (!element) {
+            console.error(`[Automation] Element not found: ${slot.element_xpath}`)
+            continue
+          }
           
           // 等待指定时间
           await delay(slot.timeout || 200)
@@ -78,15 +159,15 @@ export async function executeLogin(endpointId: number, chromePath: string): Prom
           // 执行操作
           switch (slot.action_type) {
             case 'input':
-              await locator.fill(value)
+              await fillElement(element, value)
               console.log('[Automation] Input completed:', value)
               break
             case 'click':
-              await locator.click()
+              await clickElement(element)
               console.log('[Automation] Click completed')
               break
             case 'select':
-              await locator.select({ value })
+              await selectElement(element, value)
               console.log('[Automation] Select completed:', value)
               break
           }
@@ -116,8 +197,12 @@ export async function executeLoginInWebview(endpoint: EndpointFull, webview: Ele
   for (const pageData of endpoint.pages) {
     if (pageData.url) {
       webview.src = pageData.url
-      await new Promise(resolve => {
-        webview.addEventListener('did-finish-load', resolve, { once: true })
+      await new Promise<void>(resolve => {
+        const handler = () => {
+          webview.removeEventListener('did-finish-load', handler)
+          resolve()
+        }
+        webview.addEventListener('did-finish-load', handler)
       })
     }
 
