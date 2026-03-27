@@ -4,9 +4,10 @@
  * 此脚本用于构建 Windows 7 兼容版本：
  * 1. 备份原始 package.json 和 package-lock.json
  * 2. 切换到 Win7 兼容的依赖版本
- * 3. 安装依赖
- * 4. 构建
- * 5. 恢复原始配置
+ * 3. 替换 automation.ts 为 Win7 兼容版本
+ * 4. 安装依赖
+ * 5. 构建
+ * 6. 恢复原始配置
  */
 
 const { execSync } = require('child_process')
@@ -33,13 +34,18 @@ const CHROMIUM_NORMAL_BAK = join(CHROMIUMS_DIR, 'chrome-win64-normal.zip')
 const CHROMIUM_TS = join(ROOT_DIR, 'electron', 'backend', 'services', 'chromium.ts')
 const CHROMIUM_TS_BAK = join(ROOT_DIR, 'electron', 'backend', 'services', 'chromium.ts.bak')
 
+// automation.ts 路径（Win7 兼容版）
+const AUTOMATION_TS = join(ROOT_DIR, 'electron', 'backend', 'services', 'automation.ts')
+const AUTOMATION_TS_BAK = join(ROOT_DIR, 'electron', 'backend', 'services', 'automation.ts.bak')
+const AUTOMATION_WIN7 = join(WIN7_DIR, 'automation-win7.ts')
+
 console.log('========================================')
 console.log('Windows 7 兼容版本构建脚本')
 console.log('========================================\n')
 
 try {
   // Step 1: 备份原始配置
-  console.log('[1/7] 备份原始配置...')
+  console.log('[1/9] 备份原始配置...')
   if (existsSync(PACKAGE_JSON)) {
     copyFileSync(PACKAGE_JSON, PACKAGE_JSON_BAK)
   }
@@ -49,9 +55,12 @@ try {
   if (existsSync(CHROMIUM_TS)) {
     copyFileSync(CHROMIUM_TS, CHROMIUM_TS_BAK)
   }
+  if (existsSync(AUTOMATION_TS)) {
+    copyFileSync(AUTOMATION_TS, AUTOMATION_TS_BAK)
+  }
   
   // Step 2: 切换到 Win7 配置
-  console.log('[2/7] 切换到 Win7 依赖配置...')
+  console.log('[2/9] 切换到 Win7 依赖配置...')
   copyFileSync(WIN7_PACKAGE, PACKAGE_JSON)
   
   // 删除旧的 lock 文件以重新生成
@@ -60,7 +69,7 @@ try {
   }
   
   // Step 3: 备份并切换 Chromium
-  console.log('[3/7] 切换 Chromium 到 Win7 兼容版本...')
+  console.log('[3/9] 切换 Chromium 到 Win7 兼容版本...')
   if (existsSync(CHROMIUM_NORMAL)) {
     renameSync(CHROMIUM_NORMAL, CHROMIUM_NORMAL_BAK)
   }
@@ -75,7 +84,7 @@ try {
   }
   
   // Step 4: 修改 chromium.ts 的 exePath（Win7 版本目录结构不同）
-  console.log('[4/7] 修改 chromium.ts 配置...')
+  console.log('[4/9] 修改 chromium.ts 配置...')
   let chromiumTs = readFileSync(CHROMIUM_TS, 'utf-8')
   // 替换 Windows 配置的 exePath
   chromiumTs = chromiumTs.replace(
@@ -87,12 +96,23 @@ try {
   )
   writeFileSync(CHROMIUM_TS, chromiumTs)
   
-  // Step 5: 安装依赖
-  console.log('[5/7] 安装 Win7 兼容依赖...')
+  // Step 5: 替换 automation.ts 为 Win7 兼容版本
+  console.log('[5/9] 替换 automation.ts 为 Win7 兼容版本...')
+  if (existsSync(AUTOMATION_WIN7)) {
+    copyFileSync(AUTOMATION_WIN7, AUTOMATION_TS)
+    console.log('  已使用 puppeteer 19.x 兼容的 automation.ts')
+  } else {
+    console.error('  错误: 未找到 Win7 兼容版 automation.ts!')
+    console.error(`  期望路径: ${AUTOMATION_WIN7}`)
+    process.exit(1)
+  }
+  
+  // Step 6: 安装依赖
+  console.log('[6/9] 安装 Win7 兼容依赖...')
   execSync('npm install', { stdio: 'inherit', cwd: ROOT_DIR })
   
-  // Step 6: 构建
-  console.log('[6/7] 构建 Win7 版本...')
+  // Step 7: 构建
+  console.log('[7/9] 构建 Win7 版本...')
   execSync('npm run build:win7', { stdio: 'inherit', cwd: ROOT_DIR })
   
   console.log('\n========================================')
@@ -104,8 +124,8 @@ try {
   console.error('构建失败:', error.message)
   process.exit(1)
 } finally {
-  // Step 7: 恢复原始配置
-  console.log('\n[7/7] 恢复原始配置...')
+  // Step 8-9: 恢复原始配置
+  console.log('\n[8/9] 恢复原始配置...')
   
   // 恢复 package.json
   if (existsSync(PACKAGE_JSON_BAK)) {
@@ -135,8 +155,14 @@ try {
     unlinkSync(CHROMIUM_TS_BAK)
   }
   
+  // 恢复 automation.ts
+  if (existsSync(AUTOMATION_TS_BAK)) {
+    copyFileSync(AUTOMATION_TS_BAK, AUTOMATION_TS)
+    unlinkSync(AUTOMATION_TS_BAK)
+  }
+  
   // 重新安装原始依赖
-  console.log('重新安装原始依赖...')
+  console.log('[9/9] 重新安装原始依赖...')
   execSync('npm install', { stdio: 'inherit', cwd: ROOT_DIR })
   
   console.log('原始配置已恢复!')

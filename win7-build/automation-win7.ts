@@ -1,3 +1,9 @@
+/**
+ * Win7 兼容版自动化服务
+ * 
+ * 使用 puppeteer 19.x 兼容 API（waitForXPath 等）
+ * 此文件仅在 Win7 构建时替换 automation.ts
+ */
 import puppeteer from 'puppeteer-core'
 import { getEndpoint } from './endpoint'
 import { getMasterKey } from './account'
@@ -7,7 +13,7 @@ import type { EndpointFull } from './endpoint'
 // 延时函数
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-// 执行登录自动化
+// 执行登录自动化（Win7 兼容版）
 export async function executeLogin(endpointId: number, chromePath: string): Promise<{ success: boolean; message: string }> {
   // 获取登录端完整数据
   const endpoint = getEndpoint(endpointId)
@@ -38,7 +44,8 @@ export async function executeLogin(endpointId: number, chromePath: string): Prom
   try {
     // 获取页面
     const pages = await browser.pages()
-    let page = pages[0] || await browser.newPage()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let page: any = pages[0] || await browser.newPage()
 
     // 隐藏自动化特征
     await page.evaluateOnNewDocument(() => {
@@ -57,9 +64,14 @@ export async function executeLogin(endpointId: number, chromePath: string): Prom
       for (const slot of pageData.slots) {
         try {
           console.log('[Automation] Execute slot:', slot.action_type, slot.element_xpath)
-          // 使用 locator API 等待元素（新版 Puppeteer API）
-          const locator = page.locator(`xpath=${slot.element_xpath}`)
-          await locator.wait({ timeout: 10000 })
+          
+          // Win7 兼容：使用 waitForXPath（puppeteer 19.x API）
+          const element = await page.waitForXPath(slot.element_xpath, { timeout: 10000 })
+          
+          if (!element) {
+            console.error(`[Automation] Element not found: ${slot.element_xpath}`)
+            continue
+          }
           
           // 等待指定时间
           await delay(slot.timeout || 200)
@@ -75,18 +87,22 @@ export async function executeLogin(endpointId: number, chromePath: string): Prom
             }
           }
 
-          // 执行操作
+          // 执行操作（Win7 兼容：使用 ElementHandle API）
           switch (slot.action_type) {
             case 'input':
-              await locator.fill(value)
+              // 点击聚焦
+              await element.click()
+              // 清空并输入
+              await element.evaluate((el: any) => { el.value = '' })
+              await element.type(value, { delay: 50 })
               console.log('[Automation] Input completed:', value)
               break
             case 'click':
-              await locator.click()
+              await element.click()
               console.log('[Automation] Click completed')
               break
             case 'select':
-              await locator.select({ value })
+              await element.select(value)
               console.log('[Automation] Select completed:', value)
               break
           }
@@ -116,8 +132,12 @@ export async function executeLoginInWebview(endpoint: EndpointFull, webview: Ele
   for (const pageData of endpoint.pages) {
     if (pageData.url) {
       webview.src = pageData.url
-      await new Promise(resolve => {
-        webview.addEventListener('did-finish-load', resolve, { once: true })
+      await new Promise<void>(resolve => {
+        const handler = () => {
+          webview.removeEventListener('did-finish-load', handler)
+          resolve()
+        }
+        webview.addEventListener('did-finish-load', handler)
       })
     }
 
