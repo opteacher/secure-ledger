@@ -237,6 +237,89 @@
           
           <!-- Content -->
           <div class="flex-1 overflow-y-auto p-6">
+            <!-- App Lock Settings -->
+            <div class="mb-6">
+              <h4 class="text-sm font-medium text-fg-secondary mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                应用锁定
+              </h4>
+              <div class="space-y-3">
+                <!-- 启用开关 -->
+                <div class="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
+                  <div>
+                    <p class="text-sm font-medium text-fg-primary">启用自动锁定</p>
+                    <p class="text-xs text-fg-muted">空闲一段时间后自动锁定应用</p>
+                  </div>
+                  <button 
+                    @click="toggleLockEnabled" 
+                    :class="lockSettings?.is_enabled ? 'bg-primary-500' : 'bg-gray-300'"
+                    class="relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                  >
+                    <span 
+                      :class="lockSettings?.is_enabled ? 'translate-x-5' : 'translate-x-1'"
+                      class="absolute top-1 left-0 w-4 h-4 bg-white rounded-full shadow transition-transform"
+                    ></span>
+                  </button>
+                </div>
+                
+                <!-- 活动时长 -->
+                <div class="p-3 rounded-lg bg-neutral-50" :class="{ 'opacity-50': !lockSettings?.is_enabled }">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="text-sm font-medium text-fg-primary">活动时长</p>
+                      <p class="text-xs text-fg-muted">无操作多久后自动锁定</p>
+                    </div>
+                    <select 
+                      v-model.number="lockDelayMinutes" 
+                      @change="updateLockDelay"
+                      :disabled="!lockSettings?.is_enabled"
+                      class="px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:border-primary-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    >
+                      <option :value="0.5">30 秒</option>
+                      <option :value="1">1 分钟</option>
+                      <option :value="3">3 分钟</option>
+                      <option :value="5">5 分钟</option>
+                      <option :value="10">10 分钟</option>
+                      <option :value="15">15 分钟</option>
+                      <option :value="30">30 分钟</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <!-- 锁定密码 -->
+                <div class="p-3 rounded-lg bg-neutral-50" :class="{ 'opacity-50': !lockSettings?.is_enabled }">
+                  <div class="flex items-center justify-between mb-2">
+                    <div>
+                      <p class="text-sm font-medium text-fg-primary">锁定密码</p>
+                      <p class="text-xs text-fg-muted">{{ lockSettings?.has_password ? '已设置6位密码' : '未设置密码，输入后自动保存' }}</p>
+                    </div>
+                    <button 
+                      v-if="lockSettings?.has_password"
+                      @click="clearLockPassword"
+                      :disabled="!lockSettings?.is_enabled"
+                      class="text-sm text-red-600 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                    >
+                      清除
+                    </button>
+                  </div>
+                  
+                  <!-- 密码输入 -->
+                  <input 
+                    v-model="lockPassword" 
+                    type="password"
+                    maxlength="6"
+                    :placeholder="lockSettings?.has_password ? '输入6位密码修改' : '输入6位密码'"
+                    :disabled="!lockSettings?.is_enabled"
+                    @blur="saveLockPasswordAuto"
+                    class="w-full px-3 py-2 text-sm rounded-lg border border-neutral-300 focus:border-primary-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed tracking-[0.3em]"
+                  />
+                  <p v-if="lockPasswordError" class="text-xs text-red-500 mt-1">{{ lockPasswordError }}</p>
+                </div>
+              </div>
+            </div>
+
             <!-- Data Management -->
             <div class="mb-6">
               <h4 class="text-sm font-medium text-fg-secondary mb-3 flex items-center gap-2">
@@ -738,7 +821,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEndpointStore } from '../stores/endpoint'
-import { loginApi, terminalApi, terminalConfigApi, endpointApi, sshApi, appApi, ttydApi, plinkApi, sshpassApi, platformApi, browserApi, type ChromeInfo, type TerminalTool, type TerminalConfig, type EndpointFull, type Endpoint, type SSHConfig, type TtydStatus, type TtydPathInfo, type PortCheckResult, type PlinkPathInfo, type SshpassPathInfo, type PlatformInfo, type BrowserConfig } from '../apis'
+import { loginApi, terminalApi, terminalConfigApi, endpointApi, sshApi, appApi, ttydApi, plinkApi, sshpassApi, platformApi, browserApi, appLockApi, type ChromeInfo, type TerminalTool, type TerminalConfig, type EndpointFull, type Endpoint, type SSHConfig, type TtydStatus, type TtydPathInfo, type PortCheckResult, type PlinkPathInfo, type SshpassPathInfo, type PlatformInfo, type BrowserConfig, type AppLockSettings } from '../apis'
 import { safeConfirm, messageSuccess, messageError, messageWarning } from '../utils/dialog'
 import UploadModal from '../components/UploadModal.vue'
 
@@ -789,8 +872,34 @@ const newTerminalName = ref('')
 const newTerminalPath = ref('')
 const newTerminalType = ref('')
 
+// 应用锁定状态
+const lockSettings = ref<AppLockSettings | null>(null)
+const lockPassword = ref('')
+const lockPasswordError = ref('')
+let lockTimer: ReturnType<typeof setTimeout> | null = null
+let activityListener: (() => void) | null = null
+
+// 锁定相关状态
+const lockDelayMinutes = ref(5)
+
 onMounted(async () => {
   await endpointStore.loadEndpoints()
+  // 初始化锁定设置
+  await refreshLockSettings()
+  
+  // 检查是否处于锁定状态
+  const lockStatus = await appLockApi.isLocked()
+  if (lockStatus.is_locked) {
+    console.log('[AppLock] App is locked, navigating to lock page')
+    router.push('/lock')
+    return
+  }
+  
+  // 只要启用锁定就启动计时器（不要求必须设置密码）
+  if (lockSettings.value?.is_enabled) {
+    startActivityMonitor()
+    startLockTimer()
+  }
 })
 
 // 监听设置对话框打开，获取数据库路径和日志路径
@@ -824,12 +933,167 @@ watch(showSettingsModal, async (newVal) => {
     await refreshBrowserList()
     // 加载终端工具
     await refreshSettingsTerminalList()
+    // 加载锁定设置
+    await refreshLockSettings()
   }
 })
 
 // 刷新登录端列表
 async function refreshList() {
   await endpointStore.loadEndpoints()
+}
+
+// 刷新锁定设置
+async function refreshLockSettings() {
+  try {
+    lockSettings.value = await appLockApi.getSettings()
+    lockDelayMinutes.value = lockSettings.value.lock_delay_minutes
+  } catch (e) {
+    console.error('Failed to get lock settings:', e)
+  }
+}
+
+// 切换锁定启用状态
+async function toggleLockEnabled() {
+  if (!lockSettings.value) return
+  
+  const newEnabled = !lockSettings.value.is_enabled
+  lockSettings.value = await appLockApi.updateSettings({ is_enabled: newEnabled })
+  
+  if (newEnabled) {
+    startActivityMonitor()
+    startLockTimer()
+  } else {
+    stopLockTimer()
+  }
+  
+  messageSuccess(newEnabled ? '已启用自动锁定' : '已关闭自动锁定')
+}
+
+// 更新锁定延时
+async function updateLockDelay() {
+  if (!lockSettings.value?.is_enabled) return
+  
+  lockSettings.value = await appLockApi.updateSettings({ lock_delay_minutes: lockDelayMinutes.value })
+  startLockTimer() // 重置计时器
+  
+  // 格式化显示时间
+  const delayText = lockDelayMinutes.value === 0.5 ? '30 秒' : `${lockDelayMinutes.value} 分钟`
+  messageSuccess(`活动时长已设置为 ${delayText}`)
+}
+
+// 自动保存锁定密码（失去焦点时）
+async function saveLockPasswordAuto() {
+  // 清除之前的错误
+  lockPasswordError.value = ''
+  
+  // 如果密码为空，不做任何操作
+  if (!lockPassword.value) return
+  
+  if (lockPassword.value.length !== 6) {
+    lockPasswordError.value = '密码必须为6位'
+    return
+  }
+  
+  try {
+    const result = await appLockApi.setPassword(lockPassword.value)
+    if (result.success) {
+      messageSuccess('密码已保存')
+      lockPassword.value = ''
+      await refreshLockSettings()
+      // 如果已启用，启动活动监听器和计时器
+      if (lockSettings.value?.is_enabled) {
+        startActivityMonitor()
+        startLockTimer()
+      }
+    } else {
+      lockPasswordError.value = result.message
+    }
+  } catch (e: any) {
+    lockPasswordError.value = e.message
+  }
+}
+
+// 清除锁定密码
+async function clearLockPassword() {
+  if (!lockSettings.value?.is_enabled) return
+  
+  if (!await safeConfirm('确定要清除锁定密码吗？', { title: '清除密码', confirmText: '清除', type: 'warning' })) {
+    return
+  }
+  
+  try {
+    await appLockApi.removePassword()
+    messageSuccess('密码已清除')
+    await refreshLockSettings()
+  } catch (e: any) {
+    messageError('清除失败: ' + e.message)
+  }
+}
+
+// 启动锁定计时器
+function startLockTimer() {
+  // 先清除旧的计时器
+  if (lockTimer) {
+    clearTimeout(lockTimer)
+    lockTimer = null
+  }
+  
+  // 检查是否启用锁定（不再要求必须设置密码）
+  if (!lockSettings.value?.is_enabled) {
+    return
+  }
+  
+  const delay = (lockSettings.value.lock_delay_minutes || 5) * 60 * 1000
+  console.log('[LockTimer] Starting timer, will lock in', delay / 1000, 'seconds')
+  
+  lockTimer = setTimeout(async () => {
+    console.log('[LockTimer] Timer fired, locking app')
+    // 先更新数据库锁定状态
+    await appLockApi.lock()
+    // 再跳转到锁定页面
+    router.push('/lock')
+  }, delay)
+}
+
+// 重置锁定计时器（用户活动时调用）
+function resetLockTimer() {
+  if (!lockSettings.value?.is_enabled) {
+    return
+  }
+  startLockTimer()
+}
+
+// 添加活动监听器（只添加一次）
+function startActivityMonitor() {
+  if (activityListener) return // 已经添加过了
+  
+  activityListener = () => {
+    resetLockTimer()
+  }
+  
+  document.addEventListener('mousemove', activityListener)
+  document.addEventListener('keydown', activityListener)
+  document.addEventListener('mousedown', activityListener)
+  document.addEventListener('touchstart', activityListener)
+  console.log('[LockTimer] Activity monitor started')
+}
+
+// 停止锁定计时器和活动监听
+function stopLockTimer() {
+  if (lockTimer) {
+    clearTimeout(lockTimer)
+    lockTimer = null
+  }
+  
+  if (activityListener) {
+    document.removeEventListener('mousemove', activityListener)
+    document.removeEventListener('keydown', activityListener)
+    document.removeEventListener('mousedown', activityListener)
+    document.removeEventListener('touchstart', activityListener)
+    activityListener = null
+    console.log('[LockTimer] Activity monitor stopped')
+  }
 }
 
 // 刷新 ttyd 状态

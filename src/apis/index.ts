@@ -451,3 +451,48 @@ export const terminalConfigApi = {
   detectAndAdd: () =>
     invoke<{ added: number; skipped: number; total: number }>('terminalConfig:detectAndAdd')
 }
+
+// ============ 应用锁定 API ============
+export interface AppLockSettings {
+  id: number
+  is_enabled: boolean
+  is_locked: boolean      // 应用是否处于锁定状态
+  lock_delay_minutes: number
+  has_password: boolean
+  created_at: string
+  updated_at: string
+}
+
+export const appLockApi = {
+  // 获取锁定设置
+  getSettings: () =>
+    invoke<AppLockSettings>('appLock:getSettings'),
+  
+  // 更新锁定设置
+  updateSettings: (settings: { is_enabled?: boolean; lock_delay_minutes?: number }) =>
+    invoke<AppLockSettings>('appLock:updateSettings', settings),
+  
+  // 设置锁定密码
+  setPassword: (password: string) =>
+    invoke<{ success: boolean; message: string }>('appLock:setPassword', { password }),
+  
+  // 验证锁定密码
+  verifyPassword: (password: string) =>
+    invoke<{ valid: boolean }>('appLock:verifyPassword', { password }),
+  
+  // 移除锁定密码
+  removePassword: () =>
+    invoke<{ success: boolean; message: string }>('appLock:removePassword'),
+  
+  // 锁定应用
+  lock: () =>
+    invoke<void>('appLock:lock'),
+  
+  // 解锁应用
+  unlock: () =>
+    invoke<void>('appLock:unlock'),
+  
+  // 检查是否锁定
+  isLocked: () =>
+    invoke<{ is_locked: boolean }>('appLock:isLocked')
+}

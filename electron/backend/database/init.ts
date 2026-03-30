@@ -126,6 +126,21 @@ export function initTables(): void {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
+    
+    -- 应用锁定设置表
+    CREATE TABLE IF NOT EXISTS app_lock_settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),  -- 只允许一行记录
+      is_enabled INTEGER DEFAULT 0,
+      is_locked INTEGER DEFAULT 0,             -- 应用是否处于锁定状态
+      lock_delay_minutes INTEGER DEFAULT 5,   -- 延时锁定时长（分钟）
+      lock_password_hash TEXT,               -- 锁定密码哈希
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    -- 初始化默认锁定设置
+    INSERT OR IGNORE INTO app_lock_settings (id, is_enabled, is_locked, lock_delay_minutes) 
+    VALUES (1, 0, 0, 5);
   `)
 
   // 迁移：添加新字段（如果不存在）
@@ -154,6 +169,15 @@ export function initTables(): void {
   try {
     run(`ALTER TABLE browser ADD COLUMN chrome_version TEXT`)
   } catch {}
+  
+  // 迁移：app_lock_settings 表添加 is_locked 字段
+  try {
+    run(`ALTER TABLE app_lock_settings ADD COLUMN is_locked INTEGER DEFAULT 0`)
+    console.log('Added is_locked column to app_lock_settings')
+  } catch (e) {
+    // 列可能已存在，忽略错误
+    console.log('is_locked column already exists or table not found')
+  }
 
   console.log('Database tables initialized')
 }

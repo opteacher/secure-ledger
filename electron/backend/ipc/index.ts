@@ -15,6 +15,7 @@ import * as terminalConfigService from '../services/terminalConfig'
 import * as browserService from '../services/browser'
 import * as loggerService from '../services/logger'
 import * as chromiumService from '../services/chromium'
+import * as appLockService from '../services/appLock'
 import * as database from '../database/index'
 
 interface IPCResponse<T = any> {
@@ -140,6 +141,16 @@ export function registerAllIPCHandlers(): void {
   registerHandler('chromium:uninstall', handleChromiumUninstall)
   registerHandler('chromium:register', handleChromiumRegister)
   registerHandler('chromium:unregister', handleChromiumUnregister)
+  
+  // 应用锁定
+  registerHandler('appLock:getSettings', handleAppLockGetSettings)
+  registerHandler('appLock:updateSettings', handleAppLockUpdateSettings)
+  registerHandler('appLock:setPassword', handleAppLockSetPassword)
+  registerHandler('appLock:verifyPassword', handleAppLockVerifyPassword)
+  registerHandler('appLock:removePassword', handleAppLockRemovePassword)
+  registerHandler('appLock:lock', handleAppLockLock)
+  registerHandler('appLock:unlock', handleAppLockUnlock)
+  registerHandler('appLock:isLocked', handleAppLockIsLocked)
   
   console.log('All IPC handlers registered')
 }
@@ -554,4 +565,37 @@ function handleChromiumRegister() {
 
 function handleChromiumUnregister() {
   return chromiumService.unregisterChromium()
+}
+
+// ============ 应用锁定处理器 ============
+function handleAppLockGetSettings() {
+  return appLockService.getLockSettings()
+}
+
+function handleAppLockUpdateSettings(data: { is_enabled?: boolean; lock_delay_minutes?: number }) {
+  return appLockService.updateLockSettings(data)
+}
+
+function handleAppLockSetPassword(data: { password: string }) {
+  return appLockService.setLockPassword(data.password)
+}
+
+function handleAppLockVerifyPassword(data: { password: string }) {
+  return { valid: appLockService.verifyLockPassword(data.password) }
+}
+
+function handleAppLockRemovePassword() {
+  return appLockService.removeLockPassword()
+}
+
+function handleAppLockLock() {
+  return appLockService.lockApp()
+}
+
+function handleAppLockUnlock() {
+  return appLockService.unlockApp()
+}
+
+function handleAppLockIsLocked() {
+  return { is_locked: appLockService.isAppLocked() }
 }

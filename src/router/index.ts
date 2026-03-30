@@ -14,6 +14,11 @@ const routes: RouteRecordRaw[] = [
     path: '/endpoint/:id?',
     name: 'Endpoint',
     component: () => import('../views/EndpointEdit.vue')
+  },
+  {
+    path: '/lock',
+    name: 'Lock',
+    component: () => import('../views/Lock.vue')
   }
 ]
 
