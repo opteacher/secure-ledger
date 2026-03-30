@@ -312,7 +312,7 @@
               </div>
             </div>
 
-            <!-- Browser Config -->
+<!-- Browser Config -->
             <div class="mb-6">
               <div class="flex items-center justify-between mb-3">
                 <h4 class="text-sm font-medium text-fg-secondary flex items-center gap-2">
@@ -330,28 +330,57 @@
               <div class="space-y-2">
                 <!-- 浏览器列表 -->
                 <div v-for="browser in browserList" :key="browser.id" 
-                     class="p-3 rounded-lg bg-neutral-50 flex items-center justify-between">
-                  <div class="flex items-center gap-3 flex-1 min-w-0">
-                    <div class="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
-                      <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
-                      </svg>
+                     class="p-3 rounded-lg bg-neutral-50">
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                      <div class="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
+                        </svg>
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-fg-primary">{{ browser.name }}</p>
+                        <p class="text-xs text-fg-muted truncate" :title="browser.path">{{ browser.path }}</p>
+                        <!-- Chrome 版本显示 -->
+                        <p v-if="browser.chrome_version" class="text-xs text-fg-muted mt-0.5">
+                          Chrome 内核: {{ browser.chrome_version }}
+                        </p>
+                      </div>
                     </div>
-                    <div class="flex-1 min-w-0">
-                      <p class="text-sm font-medium text-fg-primary">{{ browser.name }}</p>
-                      <p class="text-xs text-fg-muted truncate" :title="browser.path">{{ browser.path }}</p>
+                    <div class="flex items-center gap-2 flex-shrink-0 ml-2">
+                      <!-- Puppeteer 版本选择器 -->
+                      <select 
+                        v-model="browser.puppeteer_version" 
+                        @change="updateBrowserPuppeteerVersion(browser)"
+                        class="text-xs px-2 py-1 rounded border border-neutral-300 bg-white focus:border-primary-500 focus:outline-none"
+                        title="Puppeteer 版本设置"
+                      >
+                        <option value="auto">自动</option>
+                        <option value="high">高版本</option>
+                        <option value="low">低版本</option>
+                      </select>
+                      <button @click="toggleBrowserStatus(browser)" 
+                              :class="browser.is_enabled ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'"
+                              class="text-xs px-2 py-1 rounded transition-colors">
+                        {{ browser.is_enabled ? '启用' : '禁用' }}
+                      </button>
+                      <button @click="deleteBrowser(browser.id)" 
+                              class="text-xs px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+                        删除
+                      </button>
                     </div>
                   </div>
-                  <div class="flex items-center gap-2 flex-shrink-0 ml-2">
-                    <button @click="toggleBrowserStatus(browser)" 
-                            :class="browser.is_enabled ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'"
-                            class="text-xs px-2 py-1 rounded transition-colors">
-                      {{ browser.is_enabled ? '启用' : '禁用' }}
-                    </button>
-                    <button @click="deleteBrowser(browser.id)" 
-                            class="text-xs px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
-                      删除
-                    </button>
+                  <!-- Puppeteer 版本说明 -->
+                  <div class="mt-2 text-xs text-fg-muted pl-11">
+                    <span v-if="browser.puppeteer_version === 'auto'">
+                      自动: Chrome &lt;112 使用低版本 Puppeteer (13.7.0)
+                    </span>
+                    <span v-else-if="browser.puppeteer_version === 'high'">
+                      高版本: Puppeteer 22.x (Chrome 112+)
+                    </span>
+                    <span v-else>
+                      低版本: Puppeteer 13.7.0 (Chrome 90-111)
+                    </span>
                   </div>
                 </div>
                 
@@ -973,6 +1002,17 @@ async function toggleBrowserStatus(browser: BrowserConfig) {
     await refreshBrowserList()
   } catch (e: any) {
     messageError('更新状态失败: ' + e.message)
+  }
+}
+
+async function updateBrowserPuppeteerVersion(browser: BrowserConfig) {
+  try {
+    await browserApi.updatePuppeteerVersion(browser.id, browser.puppeteer_version)
+    messageSuccess('Puppeteer 版本设置已更新')
+  } catch (e: any) {
+    messageError('更新失败: ' + e.message)
+    // 恢复原值
+    await refreshBrowserList()
   }
 }
 

@@ -37,7 +37,9 @@ extraResources:
     to: "scripts"
   - from: "ttyd"
     to: "ttyd"
-  - from: "chromiums"
+  - from: "build-chromium"
     to: "chromiums"
+    filter:
+      - "**/*.zip"
   - from: "node_modules/sql.js/dist/sql-wasm.wasm"
     to: "sql-wasm.wasm"

@@ -111,6 +111,8 @@ export function initTables(): void {
       name TEXT NOT NULL,
       path TEXT NOT NULL UNIQUE,
       is_enabled INTEGER DEFAULT 1,
+      puppeteer_version TEXT DEFAULT 'auto',  -- 'auto' | 'high' | 'low'
+      chrome_version TEXT,  -- 检测到的 Chrome 内核版本
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
@@ -143,6 +145,14 @@ export function initTables(): void {
   // 迁移：terminal 表添加 terminal_type 字段（终端类型标识符）
   try {
     run(`ALTER TABLE terminal ADD COLUMN terminal_type TEXT DEFAULT ''`)
+  } catch {}
+  
+  // 迁移：browser 表添加 puppeteer_version 和 chrome_version 字段
+  try {
+    run(`ALTER TABLE browser ADD COLUMN puppeteer_version TEXT DEFAULT 'auto'`)
+  } catch {}
+  try {
+    run(`ALTER TABLE browser ADD COLUMN chrome_version TEXT`)
   } catch {}
 
   console.log('Database tables initialized')

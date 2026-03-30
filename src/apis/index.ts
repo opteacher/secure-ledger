@@ -344,8 +344,21 @@ export interface BrowserConfig {
   name: string
   path: string
   is_enabled: boolean
+  puppeteer_version: 'auto' | 'high' | 'low'  // Puppeteer 版本选择
+  chrome_version: string | null  // 检测到的 Chrome 内核版本
   created_at: string
   updated_at: string
+}
+
+export interface BrowserVersionAnalysis {
+  versionInfo: {
+    path: string
+    version: string | null
+    majorVersion: number | null
+    error?: string
+  }
+  puppeteerVersion: 'high' | 'low'
+  decision: string
 }
 
 export const browserApi = {
@@ -368,6 +381,18 @@ export const browserApi = {
   // 更新浏览器启用状态
   updateStatus: (id: number, isEnabled: boolean) =>
     invoke<boolean>('browser:updateStatus', { id, isEnabled }),
+  
+  // 更新 Puppeteer 版本设置
+  updatePuppeteerVersion: (id: number, version: 'auto' | 'high' | 'low') =>
+    invoke<boolean>('browser:updatePuppeteerVersion', { id, version }),
+  
+  // 检测浏览器版本
+  detectVersion: (id: number) =>
+    invoke<{ version: string | null; majorVersion: number | null }>('browser:detectVersion', { id }),
+  
+  // 分析浏览器版本（确定应使用的 Puppeteer 版本）
+  analyzeVersion: (path: string, preference?: 'auto' | 'high' | 'low') =>
+    invoke<BrowserVersionAnalysis>('browser:analyzeVersion', { path, preference }),
   
   // 检测系统浏览器
   detect: () =>

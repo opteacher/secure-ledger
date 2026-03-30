@@ -51,3 +51,4 @@ __pycache__/
 
 # Large binaries (download separately)
 chromiums/
+build-chromium/

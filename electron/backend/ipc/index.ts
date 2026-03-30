@@ -120,6 +120,9 @@ export function registerAllIPCHandlers(): void {
   registerHandler('browser:detect', handleBrowserDetect)
   registerHandler('browser:initDefault', handleBrowserInitDefault)
   registerHandler('browser:detectAndAdd', handleBrowserDetectAndAdd)
+  registerHandler('browser:updatePuppeteerVersion', handleBrowserUpdatePuppeteerVersion)
+  registerHandler('browser:detectVersion', handleBrowserDetectVersion)
+  registerHandler('browser:analyzeVersion', handleBrowserAnalyzeVersion)
   
   // 终端工具管理
   registerHandler('terminalConfig:getList', handleTerminalConfigGetList)
@@ -483,6 +486,20 @@ function handleBrowserInitDefault() {
 
 function handleBrowserDetectAndAdd() {
   return browserService.detectAndAddNewBrowsers()
+}
+
+function handleBrowserUpdatePuppeteerVersion(data: { id: number; version: 'auto' | 'high' | 'low' }) {
+  return browserService.updateBrowserPuppeteerVersion(data.id, data.version)
+}
+
+function handleBrowserDetectVersion(data: { id: number }) {
+  return browserService.detectAndUpdateBrowserVersion(data.id)
+}
+
+function handleBrowserAnalyzeVersion(data: { path: string; preference?: 'auto' | 'high' | 'low' }) {
+  // 导入分析函数
+  const { analyzeBrowserForPuppeteer } = require('../services/puppeteerManager')
+  return analyzeBrowserForPuppeteer(data.path, data.preference || 'auto')
 }
 
 // ============ 终端工具管理处理器 ============
