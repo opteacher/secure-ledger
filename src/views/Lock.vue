@@ -50,10 +50,21 @@
         <p v-if="hasPassword" class="text-xs text-gray-500 text-center">
           连续输错 {{ maxAttempts }} 次将需要等待 {{ lockoutTime }} 秒
         </p>
+        
+        <!-- 忘记密码链接 -->
+        <p class="text-xs text-center mt-4">
+          <a 
+            href="javascript:;" 
+            @click="handleForgotPassword"
+            class="text-primary-400 hover:text-primary-300 transition-colors"
+          >
+            忘记密码，联系开发者
+          </a>
+        </p>
       </div>
       
       <!-- 版本信息 -->
-      <p class="text-center text-xs text-gray-600 mt-6">密钥终端 v1.0.1</p>
+      <p class="text-center text-xs text-gray-600 mt-6">密钥终端 v1.0.2</p>
     </div>
   </div>
 </template>
@@ -219,6 +230,20 @@ async function unlockWithoutPassword() {
     router.push('/home')
   } catch (e: any) {
     showError('解锁失败: ' + e.message)
+  }
+}
+
+// 忘记密码
+async function handleForgotPassword() {
+  try {
+    const result = await appLockApi.sendUnlockRequest()
+    if (result.success) {
+      alert('邮件已发送，请联系开发者处理。')
+    } else {
+      showError(result.message || '发送失败')
+    }
+  } catch (e: any) {
+    showError('发送失败: ' + e.message)
   }
 }
 

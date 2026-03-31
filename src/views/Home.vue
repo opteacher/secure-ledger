@@ -17,7 +17,28 @@
               <p class="text-xs text-fg-muted">登录端管理</p>
             </div>
           </a>
-          <div class="flex gap-3">
+          <div class="flex gap-3 items-center">
+            <!-- 搜索框 -->
+            <div class="relative">
+              <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                v-model="searchKeyword"
+                type="text"
+                placeholder="搜索登录端..."
+                class="pl-9 pr-4 py-2 w-56 text-sm rounded-lg border border-neutral-200 focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none transition-all"
+              />
+              <button
+                v-if="searchKeyword"
+                @click="searchKeyword = ''"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-fg-muted hover:text-fg-primary"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <button @click="showSettingsModal = true" class="btn-secondary" title="设置">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -47,6 +68,19 @@
         </div>
 
         <!-- Empty State -->
+        <div v-else-if="filteredEndpoints.length === 0 && endpoints.length > 0" class="empty-state">
+          <div class="w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-6">
+            <svg class="w-10 h-10 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <h3 class="text-lg font-medium text-fg-primary mb-2">未找到匹配的登录端</h3>
+          <p class="text-fg-muted mb-6">尝试使用其他关键词搜索</p>
+          <button @click="searchKeyword = ''" class="btn-secondary">
+            清除搜索
+          </button>
+        </div>
+
         <div v-else-if="endpoints.length === 0" class="empty-state">
           <div class="w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-6">
             <svg class="w-10 h-10 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -66,7 +100,7 @@
         <!-- Endpoint List -->
         <div v-else class="grid gap-4">
           <div
-            v-for="endpoint in endpoints"
+            v-for="endpoint in filteredEndpoints"
             :key="endpoint.id"
             class="card-hover group"
             @click="router.push(`/endpoint/${endpoint.id}`)"
@@ -689,7 +723,7 @@
                 </div>
                 <div>
                   <p class="text-sm font-semibold text-fg-primary">密钥终端 (Secure Ledger)</p>
-                  <p class="text-xs text-fg-muted">版本 1.0.0</p>
+                  <p class="text-xs text-fg-muted">版本 1.0.2</p>
                 </div>
               </div>
             </div>
@@ -830,6 +864,63 @@ const endpointStore = useEndpointStore()
 
 const loading = computed(() => endpointStore.loading)
 const endpoints = computed(() => endpointStore.endpoints)
+
+// 搜索关键词
+const searchKeyword = ref('')
+// 缓存的端点 URL 映射（用于搜索）
+const endpointUrlsCache = ref<Map<number, string[]>>(new Map())
+
+// 根据搜索关键词过滤登录端
+const filteredEndpoints = computed(() => {
+  const keyword = searchKeyword.value.trim().toLowerCase()
+  if (!keyword) {
+    return endpoints.value
+  }
+  
+  return endpoints.value.filter(endpoint => {
+    // 匹配名称
+    if (endpoint.name.toLowerCase().includes(keyword)) {
+      return true
+    }
+    
+    // 匹配登录类型
+    if (endpoint.login_type.toLowerCase().includes(keyword)) {
+      return true
+    }
+    
+    // 匹配缓存的 URL
+    const cachedUrls = endpointUrlsCache.value.get(endpoint.id)
+    if (cachedUrls) {
+      for (const url of cachedUrls) {
+        if (url.toLowerCase().includes(keyword)) {
+          return true
+        }
+      }
+    }
+    
+    return false
+  })
+})
+
+// 当搜索关键词变化时，异步加载端点 URL
+watch(searchKeyword, async (keyword) => {
+  if (keyword.trim()) {
+    // 加载缺失的端点 URL
+    for (const endpoint of endpoints.value) {
+      if (!endpointUrlsCache.value.has(endpoint.id)) {
+        try {
+          const fullEndpoint = await endpointApi.get(endpoint.id)
+          if (fullEndpoint) {
+            const urls = fullEndpoint.pages.map(p => p.url).filter(Boolean) as string[]
+            endpointUrlsCache.value.set(endpoint.id, urls)
+          }
+        } catch {
+          // 忽略加载错误
+        }
+      }
+    }
+  }
+})
 
 const showChromeModal = ref(false)
 const showTerminalModal = ref(false)
@@ -1510,20 +1601,92 @@ async function executeLogin(endpoint: Endpoint) {
 async function selectChrome(chromePath: string) {
   showChromeModal.value = false
   if (pendingEndpointId.value) {
-    await doExecuteLogin(pendingEndpointId.value, chromePath)
+    // 检测是否有现有浏览器实例
+    try {
+      const instanceInfo = await browserApi.checkInstance()
+      
+      if (instanceInfo.available && instanceInfo.wsEndpoint) {
+        // 有现有实例，询问用户是否使用
+        const pageCount = instanceInfo.pages?.length || 0
+        const message = pageCount > 0 
+          ? `检测到浏览器已开启 ${pageCount} 个页面。\n\n是否使用现有浏览器实例执行登录？\n\n注意：如果现有浏览器不是通过本应用启动的，可能无法连接。`
+          : '检测到浏览器已开启。\n\n是否使用现有浏览器实例执行登录？\n\n注意：如果现有浏览器不是通过本应用启动的，可能无法连接。'
+        
+        const useExisting = await safeConfirm(message, {
+          title: '使用现有浏览器',
+          confirmText: '是，使用现有',
+          cancelText: '否，启动新实例',
+          type: 'info'
+        })
+        
+        if (useExisting) {
+          // 使用现有实例
+          await doExecuteLogin(pendingEndpointId.value, chromePath, instanceInfo.wsEndpoint)
+        } else {
+          // 启动新实例（端口冲突时会自动跳过调试端口）
+          await doExecuteLogin(pendingEndpointId.value, chromePath)
+        }
+      } else {
+        // 没有现有实例，正常执行
+        await doExecuteLogin(pendingEndpointId.value, chromePath)
+      }
+    } catch (e: any) {
+      console.error('Failed to check browser instance:', e)
+      // 检测失败时，正常执行登录
+      await doExecuteLogin(pendingEndpointId.value, chromePath)
+    }
   }
 }
 
-async function doExecuteLogin(endpointId: number, chromePath: string) {
+async function doExecuteLogin(endpointId: number, chromePath: string, wsEndpoint?: string) {
   executingId.value = endpointId
   
   try {
-    const result = await loginApi.execute(endpointId, chromePath)
+    const result = await loginApi.execute(endpointId, chromePath, wsEndpoint)
     if (!result.success) {
       messageError('登录执行失败: ' + result.message)
+    } else if (result.isConnected) {
+      messageSuccess('登录执行成功（使用现有浏览器）')
+    } else {
+      messageSuccess('登录执行成功')
     }
   } catch (e: any) {
-    messageError('执行出错: ' + e.message)
+    const errorMsg = e.message || '未知错误'
+    
+    // 如果是连接现有浏览器失败，提示用户关闭浏览器重新启动
+    if (wsEndpoint && (errorMsg.includes('无法连接') || errorMsg.includes('Not allowed') || errorMsg.includes('Protocol error'))) {
+      const shouldLaunchNew = await safeConfirm(
+        '无法连接到现有浏览器实例。\n\n这可能是因为：\n1. 浏览器不是通过本应用启动的\n2. 浏览器启动时缺少远程调试参数\n\n建议：关闭现有浏览器后，启动新的浏览器实例。',
+        {
+          title: '连接失败',
+          confirmText: '启动新实例',
+          cancelText: '取消',
+          type: 'warning'
+        }
+      )
+      
+      if (shouldLaunchNew) {
+        // 递归调用，不传 wsEndpoint（启动新实例）
+        // 先确保关闭 pending 状态
+        executingId.value = null
+        pendingEndpointId.value = null
+        pendingEndpoint.value = null
+        // 重新设置执行状态
+        executingId.value = endpointId
+        try {
+          const result = await loginApi.execute(endpointId, chromePath)
+          if (!result.success) {
+            messageError('登录执行失败: ' + result.message)
+          } else {
+            messageSuccess('登录执行成功')
+          }
+        } catch (retryError: any) {
+          messageError('执行出错: ' + retryError.message)
+        }
+      }
+    } else {
+      messageError('执行出错: ' + errorMsg)
+    }
   } finally {
     executingId.value = null
     pendingEndpointId.value = null

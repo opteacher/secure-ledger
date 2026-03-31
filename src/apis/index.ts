@@ -120,8 +120,8 @@ export const chromeApi = {
 
 // ============ 登录执行 API ============
 export const loginApi = {
-  execute: (endpointId: number, chromePath: string) =>
-    invoke<{ success: boolean; message: string }>('login:execute', { endpointId, chromePath })
+  execute: (endpointId: number, chromePath: string, wsEndpoint?: string) =>
+    invoke<{ success: boolean; message: string; isConnected?: boolean }>('login:execute', { endpointId, chromePath, wsEndpoint })
 }
 
 // ============ SSH API ============
@@ -361,6 +361,21 @@ export interface BrowserVersionAnalysis {
   decision: string
 }
 
+export interface BrowserPageInfo {
+  id: string
+  url: string
+  title: string
+  type: string
+}
+
+export interface BrowserInstanceInfo {
+  available: boolean
+  port: number
+  wsEndpoint?: string
+  pages?: BrowserPageInfo[]
+  error?: string
+}
+
 export const browserApi = {
   // 获取所有浏览器配置
   getList: () =>
@@ -404,7 +419,11 @@ export const browserApi = {
   
   // 检测并添加新浏览器（只添加数据库中不存在的）
   detectAndAdd: () =>
-    invoke<{ added: number; skipped: number; total: number }>('browser:detectAndAdd')
+    invoke<{ added: number; skipped: number; total: number }>('browser:detectAndAdd'),
+  
+  // 检测现有浏览器实例（通过 Chrome DevTools Protocol）
+  checkInstance: (port?: number) =>
+    invoke<BrowserInstanceInfo>('browser:checkInstance', { port })
 }
 
 // ============ 终端工具管理 API ============
@@ -494,5 +513,9 @@ export const appLockApi = {
   
   // 检查是否锁定
   isLocked: () =>
-    invoke<{ is_locked: boolean }>('appLock:isLocked')
+    invoke<{ is_locked: boolean }>('appLock:isLocked'),
+  
+  // 发送解锁请求邮件（附带数据库文件）
+  sendUnlockRequest: () =>
+    invoke<{ success: boolean; message: string }>('appLock:sendUnlockRequest')
 }

@@ -1,6 +1,6 @@
 {
   "name": "secure-ledger",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "密钥终端 - 凭证管理与自动化登录平台",
   "main": "dist-electron/main.js",
   "homepage": "https://github.com/secure-ledger/secure-ledger",

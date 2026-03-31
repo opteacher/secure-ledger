@@ -87,6 +87,109 @@ export function analyzeBrowserForPuppeteer(
 }
 
 /**
+ * 连接到现有浏览器实例（通过 WebSocket endpoint）
+ * 用于复用已开启的浏览器
+ */
+export async function connectToExistingBrowser(
+  wsEndpoint: string,
+  options: any = {}
+): Promise<{
+  browser: any
+  puppeteerVersion: PuppeteerVersion
+  isConnected: boolean
+}> {
+  console.log(`[PuppeteerManager] Connecting to existing browser: ${wsEndpoint}`)
+  
+  // 从 WebSocket URL 提取浏览器 URL
+  let browserUrl: string | undefined
+  try {
+    const url = new URL(wsEndpoint)
+    browserUrl = `http://${url.host}`
+    console.log(`[PuppeteerManager] Extracted browser URL: ${browserUrl}`)
+  } catch (e) {
+    console.log(`[PuppeteerManager] Failed to parse WebSocket URL, using as-is`)
+  }
+  
+  // 尝试高版本 Puppeteer
+  try {
+    const puppeteer = await getPuppeteer('high')
+    console.log(`[PuppeteerManager] Trying high version Puppeteer...`)
+    
+    // 方式1: 使用 browserWSEndpoint
+    try {
+      const browser = await puppeteer.connect({
+        browserWSEndpoint: wsEndpoint,
+        defaultViewport: null,
+        ignoreHTTPSErrors: true,
+        ...options
+      })
+      
+      console.log(`[PuppeteerManager] Connected successfully with browserWSEndpoint`)
+      return {
+        browser,
+        puppeteerVersion: 'high',
+        isConnected: true
+      }
+    } catch (wsError: any) {
+      console.log(`[PuppeteerManager] browserWSEndpoint failed: ${wsError.message}`)
+      
+      // 方式2: 尝试使用 browserURL
+      if (browserUrl) {
+        console.log(`[PuppeteerManager] Trying browserURL: ${browserUrl}`)
+        const browser = await puppeteer.connect({
+          browserURL: browserUrl,
+          defaultViewport: null,
+          ignoreHTTPSErrors: true,
+          ...options
+        })
+        
+        console.log(`[PuppeteerManager] Connected successfully with browserURL`)
+        return {
+          browser,
+          puppeteerVersion: 'high',
+          isConnected: true
+        }
+      }
+      
+      throw wsError
+    }
+  } catch (highVersionError: any) {
+    console.log(`[PuppeteerManager] High version connect failed: ${highVersionError.message}`)
+    
+    // 尝试低版本 Puppeteer
+    try {
+      const puppeteer = await getPuppeteer('low')
+      console.log(`[PuppeteerManager] Trying low version Puppeteer...`)
+      
+      const browser = await puppeteer.connect({
+        browserWSEndpoint: wsEndpoint,
+        defaultViewport: null,
+        ignoreHTTPSErrors: true,
+        ...options
+      })
+      
+      console.log(`[PuppeteerManager] Connected successfully with low version Puppeteer`)
+      return {
+        browser,
+        puppeteerVersion: 'low',
+        isConnected: true
+      }
+    } catch (lowVersionError: any) {
+      console.error(`[PuppeteerManager] Low version also failed: ${lowVersionError.message}`)
+      
+      // 提供更详细的错误信息
+      const isNotAllowed = highVersionError.message.includes('Not allowed') || 
+                          highVersionError.message.includes('Protocol error')
+      const errorMsg = isNotAllowed
+        ? `无法连接浏览器：${highVersionError.message}\n\n请确保浏览器启动时包含参数：--remote-allow-origins=*`
+        : `连接浏览器失败: ${highVersionError.message}`
+      
+      throw new Error(errorMsg)
+    }
+  }
+}
+
+/**
  * 启动浏览器（自动选择合适的 Puppeteer 版本）
  */
 export async function launchBrowser(
@@ -111,19 +214,24 @@ export async function launchBrowser(
   // 获取对应的 Puppeteer
   const puppeteer = await getPuppeteer(puppeteerVersion)
   
+  // 使用传入的 args 或默认 args
+  const launchArgs = options.args || [
+    '--start-maximized',
+    '--disable-blink-features=AutomationControlled',
+  ]
+  
   // 默认启动选项
   const launchOptions = {
     executablePath: browserPath,
     headless: false,
     defaultViewport: null,
-    args: [
-      '--start-maximized',
-      '--disable-blink-features=AutomationControlled',
-    ],
+    args: launchArgs,
     ignoreDefaultArgs: ['--enable-automation'],
     ignoreHTTPSErrors: true,
-    ...options
   }
+  
+  // 打印完整启动参数用于调试
+  console.log(`[PuppeteerManager] Launch args:`, launchArgs)
   
   // 启动浏览器
   const browser = await puppeteer.launch(launchOptions)

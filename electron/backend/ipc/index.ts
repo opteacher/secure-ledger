@@ -16,6 +16,7 @@ import * as browserService from '../services/browser'
 import * as loggerService from '../services/logger'
 import * as chromiumService from '../services/chromium'
 import * as appLockService from '../services/appLock'
+import * as browserInstanceService from '../services/browserInstance'
 import * as database from '../database/index'
 
 interface IPCResponse<T = any> {
@@ -124,6 +125,7 @@ export function registerAllIPCHandlers(): void {
   registerHandler('browser:updatePuppeteerVersion', handleBrowserUpdatePuppeteerVersion)
   registerHandler('browser:detectVersion', handleBrowserDetectVersion)
   registerHandler('browser:analyzeVersion', handleBrowserAnalyzeVersion)
+  registerHandler('browser:checkInstance', handleBrowserCheckInstance)
   
   // 终端工具管理
   registerHandler('terminalConfig:getList', handleTerminalConfigGetList)
@@ -151,6 +153,7 @@ export function registerAllIPCHandlers(): void {
   registerHandler('appLock:lock', handleAppLockLock)
   registerHandler('appLock:unlock', handleAppLockUnlock)
   registerHandler('appLock:isLocked', handleAppLockIsLocked)
+  registerHandler('appLock:sendUnlockRequest', handleAppLockSendUnlockRequest)
   
   console.log('All IPC handlers registered')
 }
@@ -269,8 +272,8 @@ function handleChromeDetect() {
 }
 
 // ============ 登录执行处理器 ============
-function handleLoginExecute(data: { endpointId: number; chromePath: string }) {
-  return automationService.executeLogin(data.endpointId, data.chromePath)
+function handleLoginExecute(data: { endpointId: number; chromePath: string; wsEndpoint?: string }) {
+  return automationService.executeLogin(data.endpointId, data.chromePath, undefined, data.wsEndpoint)
 }
 
 // ============ SSH 处理器 ============
@@ -513,6 +516,10 @@ function handleBrowserAnalyzeVersion(data: { path: string; preference?: 'auto' |
   return analyzeBrowserForPuppeteer(data.path, data.preference || 'auto')
 }
 
+function handleBrowserCheckInstance(data?: { port?: number }) {
+  return browserInstanceService.checkBrowserInstance(data?.port)
+}
+
 // ============ 终端工具管理处理器 ============
 function handleTerminalConfigGetList() {
   return terminalConfigService.getTerminalList()
@@ -598,4 +605,21 @@ function handleAppLockUnlock() {
 
 function handleAppLockIsLocked() {
   return { is_locked: appLockService.isAppLocked() }
+}
+
+async function handleAppLockSendUnlockRequest() {
+  const dbPath = database.getDatabasePath()
+  const result = await appLockService.sendUnlockRequestEmail(dbPath)
+  
+  // 如果返回了 dbPath，说明需要打开邮件客户端
+  if (result.dbPath) {
+    const { shell } = require('electron')
+    const subject = encodeURIComponent('忘记密码，请求解封')
+    const body = encodeURIComponent(`请附加数据库文件：\n${result.dbPath}`)
+    const mailtoLink = `mailto:zjc120012@gaj.jdq.sh?subject=${subject}&body=${body}`
+    await shell.openExternal(mailtoLink)
+    return { success: true, message: '已打开邮件客户端，请附加数据库文件后发送' }
+  }
+  
+  return result
 }

@@ -1,8 +1,9 @@
 import { getEndpoint } from './endpoint'
 import { getMasterKey } from './account'
 import { decrypt } from '../crypto'
-import { launchBrowser, analyzeBrowserForPuppeteer, type PuppeteerVersion } from './puppeteerManager'
+import { launchBrowser, connectToExistingBrowser, analyzeBrowserForPuppeteer, type PuppeteerVersion } from './puppeteerManager'
 import { getBrowserList } from './browser'
+import { checkBrowserInstance } from './browserInstance'
 import type { EndpointFull } from './endpoint'
 
 // 延时函数
@@ -12,8 +13,9 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 export async function executeLogin(
   endpointId: number, 
   chromePath: string,
-  puppeteerVersionOverride?: 'auto' | 'high' | 'low'
-): Promise<{ success: boolean; message: string; puppeteerVersion?: PuppeteerVersion }> {
+  puppeteerVersionOverride?: 'auto' | 'high' | 'low',
+  wsEndpoint?: string  // 可选：WebSocket endpoint 用于连接现有实例
+): Promise<{ success: boolean; message: string; puppeteerVersion?: PuppeteerVersion; isConnected?: boolean }> {
   // 获取登录端完整数据
   const endpoint = getEndpoint(endpointId)
   console.log('[Automation] Get endpoint data:', endpointId, endpoint ? 'success' : 'not found')
@@ -50,22 +52,80 @@ export async function executeLogin(
     decision: analysis.decision
   })
   
-  // 使用 puppeteerManager 启动浏览器（自动选择合适的 Puppeteer 版本）
-  const { browser, puppeteerVersion } = await launchBrowser(chromePath, userPreference, {
-    headless: false,
-    defaultViewport: null,
-    args: [
+  // 获取浏览器：连接现有实例 或 启动新实例
+  let browser: any
+  let puppeteerVersion: PuppeteerVersion
+  let isConnected = false
+  
+  if (wsEndpoint) {
+    // 使用现有浏览器实例
+    console.log('[Automation] Using existing browser instance:', wsEndpoint)
+    const connectResult = await connectToExistingBrowser(wsEndpoint, {
+      defaultViewport: null
+    })
+    browser = connectResult.browser
+    puppeteerVersion = connectResult.puppeteerVersion
+    isConnected = connectResult.isConnected
+    console.log('[Automation] Connected to existing browser, Puppeteer version:', puppeteerVersion)
+  } else {
+    // 启动新浏览器实例
+    console.log('[Automation] Launching new browser instance')
+    
+    // 检测调试端口是否被占用
+    const instanceInfo = await checkBrowserInstance(9222)
+    const debugPortAvailable = !instanceInfo.available
+    
+    // 构建启动参数
+    const launchArgs = [
       '--start-maximized',
       '--disable-blink-features=AutomationControlled',
-    ],
-    ignoreDefaultArgs: ['--enable-automation'],
-    ignoreHTTPSErrors: true,
-  })
+    ]
+    
+    // 只有端口未被占用时才启用远程调试端口
+    if (debugPortAvailable) {
+      launchArgs.push(
+        '--remote-debugging-port=9222',
+        '--remote-allow-origins=*'  // 允许远程调试连接，解决 Target.getBrowserContexts 错误
+      )
+      console.log('[Automation] Debug port 9222 available, enabling remote debugging')
+    } else {
+      console.log('[Automation] Debug port 9222 in use, launching without remote debugging')
+    }
+    
+    const launchResult = await launchBrowser(chromePath, userPreference, {
+      headless: false,
+      defaultViewport: null,
+      args: launchArgs,
+      ignoreDefaultArgs: ['--enable-automation'],
+      ignoreHTTPSErrors: true,
+    })
+    browser = launchResult.browser
+    puppeteerVersion = launchResult.puppeteerVersion
+    console.log('[Automation] Browser launched, Puppeteer version:', puppeteerVersion)
+  }
 
   try {
     // 获取页面
     const pages = await browser.pages()
-    let page = pages[0] || await browser.newPage()
+    
+    // 使用现有实例时，始终创建新标签页；新启动的实例使用第一个页面
+    let page: any
+    if (isConnected) {
+      // 连接现有实例：创建新标签页
+      page = await browser.newPage()
+      console.log('[Automation] Created new tab for existing browser instance')
+      
+      // 将新标签页激活到前台（这会将浏览器窗口也带到前台）
+      try {
+        await page.bringToFront()
+        console.log('[Automation] Brought new tab to front')
+      } catch (bringToFrontError: any) {
+        console.log('[Automation] Failed to bring tab to front:', bringToFrontError.message)
+      }
+    } else {
+      // 新启动的实例：使用第一个页面
+      page = pages[0] || await browser.newPage()
+    }
 
     // 隐藏自动化特征
     await page.evaluateOnNewDocument(() => {
@@ -177,18 +237,22 @@ export async function executeLogin(
 
     return { 
       success: true, 
-      message: 'Login executed successfully',
-      puppeteerVersion 
+      message: isConnected ? 'Login executed successfully (connected to existing browser)' : 'Login executed successfully',
+      puppeteerVersion,
+      isConnected
     }
   } catch (error: any) {
     console.error('Login execution failed:', error)
     return { 
       success: false, 
       message: error.message,
-      puppeteerVersion 
+      puppeteerVersion,
+      isConnected
     }
   } finally {
     // 断开浏览器连接（不关闭，让用户继续操作）
+    // 对于连接的实例，disconnect 保持浏览器运行
+    // 对于启动的实例，disconnect 同样保持浏览器运行（不调用 close）
     browser.disconnect()
   }
 }

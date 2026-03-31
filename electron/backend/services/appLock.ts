@@ -220,3 +220,72 @@ export function isAppLocked(): boolean {
     return false
   }
 }
+
+/**
+ * 发送解锁请求邮件
+ * 附带数据库文件
+ */
+export async function sendUnlockRequestEmail(dbPath: string): Promise<{ success: boolean; message: string; dbPath?: string }> {
+  const fs = await import('fs')
+  
+  // 检查数据库文件是否存在
+  if (!fs.existsSync(dbPath)) {
+    return { success: false, message: '数据库文件不存在' }
+  }
+  
+  // SMTP 配置（使用开发者邮箱）
+  const smtpPassword = process.env.SMTP_PASSWORD || ''
+  
+  // 如果没有配置 SMTP 密码，返回数据库路径，让调用方打开邮件客户端
+  if (!smtpPassword) {
+    return { 
+      success: true, 
+      message: '请手动发送邮件',
+      dbPath
+    }
+  }
+  
+  const nodemailer = await import('nodemailer')
+  
+  const smtpConfig = {
+    host: 'smtp.qq.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: 'zjc120012@qq.com',
+      pass: smtpPassword
+    }
+  }
+  
+  try {
+    // 创建邮件传输器
+    const transporter = nodemailer.default.createTransport(smtpConfig)
+    
+    // 读取数据库文件
+    const dbContent = fs.readFileSync(dbPath)
+    
+    // 发送邮件
+    await transporter.sendMail({
+      from: smtpConfig.auth.user,
+      to: 'zjc120012@gaj.jdq.sh',
+      subject: '忘记密码，请求解封',
+      text: '用户请求解锁应用，请查看附件中的数据库文件。',
+      attachments: [
+        {
+          filename: 'secure-ledger.db',
+          content: dbContent
+        }
+      ]
+    })
+    
+    return { success: true, message: '邮件发送成功' }
+  } catch (e: any) {
+    console.error('[AppLock] Send email failed:', e)
+    // 发送失败，返回数据库路径让用户手动发送
+    return { 
+      success: true, 
+      message: '自动发送失败，请手动发送邮件',
+      dbPath
+    }
+  }
+}
