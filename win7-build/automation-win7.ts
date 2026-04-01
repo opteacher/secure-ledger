@@ -5,12 +5,12 @@
  * 此文件仅在 Win7 构建时替换 electron/backend/services/automation.ts
  * 
  * 注意：构建时此文件会被复制到 electron/backend/services/ 目录
- * 所以导入路径应该指向 electron/backend/services/ 目录下的模块
+ * 所以导入路径使用相对路径（相对于 electron/backend/services/）
  */
 import puppeteer from 'puppeteer-core'
-import { getEndpoint } from '../electron/backend/services/endpoint'
-import { hybridDecrypt, isHybridEncrypted } from '../electron/backend/crypto/hybrid'
-import type { EndpointFull } from '../electron/backend/services/endpoint'
+import { getEndpoint } from './endpoint'
+import { hybridDecrypt, isHybridEncrypted } from '../crypto/hybrid'
+import type { EndpointFull } from './endpoint'
 
 // 延时函数
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))

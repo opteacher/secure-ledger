@@ -749,7 +749,7 @@
                 </div>
                 <div>
                   <p class="text-sm font-semibold text-fg-primary">密钥终端 (Secure Ledger)</p>
-                  <p class="text-xs text-fg-muted">版本 1.0.2</p>
+                  <p class="text-xs text-fg-muted">版本 1.0.3</p>
                 </div>
               </div>
             </div>
