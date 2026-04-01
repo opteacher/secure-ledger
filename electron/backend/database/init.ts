@@ -5,8 +5,6 @@ export interface Account {
   id: number
   username: string
   password_hash: string
-  master_key: string // 加密存储的主密钥
-  salt: string // 用于派生密钥的盐
   created_at: string
   updated_at: string
 }
@@ -52,8 +50,6 @@ export function initTables(): void {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
-      master_key TEXT NOT NULL,
-      salt TEXT NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );

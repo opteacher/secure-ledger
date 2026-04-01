@@ -17,6 +17,8 @@ import * as loggerService from '../services/logger'
 import * as chromiumService from '../services/chromium'
 import * as appLockService from '../services/appLock'
 import * as browserInstanceService from '../services/browserInstance'
+import * as keyRotationService from '../services/keyRotation'
+import * as secureKeyStorageService from '../crypto/secureKeyStorage'
 import * as database from '../database/index'
 
 interface IPCResponse<T = any> {
@@ -59,6 +61,7 @@ export function registerAllIPCHandlers(): void {
   registerHandler('slot:create', handleSlotCreate)
   registerHandler('slot:update', handleSlotUpdate)
   registerHandler('slot:delete', handleSlotDelete)
+  registerHandler('slot:decryptValue', handleSlotDecryptValue)
   
   // Chrome 检测
   registerHandler('chrome:detect', handleChromeDetect)
@@ -154,6 +157,15 @@ export function registerAllIPCHandlers(): void {
   registerHandler('appLock:unlock', handleAppLockUnlock)
   registerHandler('appLock:isLocked', handleAppLockIsLocked)
   registerHandler('appLock:sendUnlockRequest', handleAppLockSendUnlockRequest)
+  
+  // 密钥轮换
+  registerHandler('keyRotation:rotate', handleKeyRotationRotate)
+  registerHandler('keyRotation:status', handleKeyRotationStatus)
+  registerHandler('keyRotation:start', handleKeyRotationStart)
+  registerHandler('keyRotation:stop', handleKeyRotationStop)
+  
+  // 安全密钥存储
+  registerHandler('secureKeyStorage:isEncryptionAvailable', handleSecureKeyStorageIsEncryptionAvailable)
   
   console.log('All IPC handlers registered')
 }
@@ -264,6 +276,10 @@ function handleSlotUpdate(data: { id: number; updates: any }) {
 
 function handleSlotDelete(id: number) {
   return slotService.deleteSlot(id)
+}
+
+function handleSlotDecryptValue(data: { encryptedValue: string }) {
+  return slotService.decryptSlotValueAuto(data.encryptedValue)
 }
 
 // ============ Chrome 检测处理器 ============
@@ -622,4 +638,28 @@ async function handleAppLockSendUnlockRequest() {
   }
   
   return result
+}
+
+// ============ 密钥轮换处理器 ============
+async function handleKeyRotationRotate() {
+  return keyRotationService.rotateKeys()
+}
+
+function handleKeyRotationStatus() {
+  return keyRotationService.getRotationStatus()
+}
+
+function handleKeyRotationStart(data?: { intervalMs?: number }) {
+  keyRotationService.startScheduledRotation(data?.intervalMs)
+  return { success: true, message: 'Scheduled rotation started' }
+}
+
+function handleKeyRotationStop() {
+  keyRotationService.stopScheduledRotation()
+  return { success: true, message: 'Scheduled rotation stopped' }
+}
+
+// ============ 安全密钥存储处理器 ============
+async function handleSecureKeyStorageIsEncryptionAvailable() {
+  return { available: await secureKeyStorageService.isEncryptionAvailable() }
 }

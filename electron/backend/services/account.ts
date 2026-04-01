@@ -1,6 +1,13 @@
+/**
+ * 账户服务
+ * 
+ * 简化版：移除 masterKey 概念，只保留账户密码验证
+ * 敏感数据加密由混合加密模块处理，不再需要 masterKey
+ */
 import { db } from '../database/init'
-import { hashPassword, verifyPassword, generateMasterKey, encryptMasterKey, generateSalt, deriveKey, decryptMasterKey } from '../crypto'
+import { hashPassword, verifyPassword } from '../crypto'
 import type { Account } from '../database/init'
+
 // 检查是否有账户
 export function hasAccount(): boolean {
   const result = db.queryOne<{ count: number }>('SELECT COUNT(*) as count FROM account')
@@ -22,17 +29,11 @@ export function createAccount(username: string, password: string): { success: bo
 
   // 哈希密码
   const passwordHash = hashPassword(password)
-  const salt = generateSalt()
   
-  // 派生密钥并加密主密钥
-  const derivedKey = deriveKey(password, salt)
-  const masterKey = generateMasterKey()
-  const encryptedMasterKey = encryptMasterKey(masterKey, derivedKey)
-  
-  // 插入账户
+  // 插入账户（不再需要 master_key 和 salt）
   db.run(
-    `INSERT INTO account (username, password_hash, master_key, salt) VALUES (?, ?, ?, ?)`,
-    [username, passwordHash, encryptedMasterKey, salt]
+    `INSERT INTO account (username, password_hash) VALUES (?, ?)`,
+    [username, passwordHash]
   )
 
   return { success: true, message: 'Account created successfully' }
@@ -97,31 +98,22 @@ export function changePassword(oldPassword: string, newPassword: string): { succ
   // 生成新密码哈希
   const newPasswordHash = hashPassword(newPassword)
   
-  // 重新加密主密钥
-  const derivedKey = deriveKey(newPassword, account.salt)
-  const decryptedMasterKey = decryptMasterKey(account.master_key, deriveKey(oldPassword, account.salt))
-  const newEncryptedMasterKey = encryptMasterKey(decryptedMasterKey, derivedKey)
-  // 更新账户
+  // 更新账户（不再需要更新 master_key）
   db.run(
-    'UPDATE account SET password_hash = ?, master_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-    [newPasswordHash, newEncryptedMasterKey, account.id]
+    'UPDATE account SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    [newPasswordHash, account.id]
   )
 
   return { success: true }
 }
 
-// 获取主密钥 (用于加密/解密敏感数据)
-export function getMasterKey(password: string): string {
+// 验证账户密码（用于其他模块验证）
+export function verifyAccountPassword(password: string): boolean {
   const account = db.queryOne<Account>('SELECT * FROM account LIMIT 1')
-
+  
   if (!account) {
-    throw new Error('Account not found')
+    return false
   }
-
-  if (!verifyPassword(password, account.password_hash)) {
-    throw new Error('Incorrect password')
-  }
-
-  const derivedKey = deriveKey(password, account.salt)
-  return decryptMasterKey(account.master_key, derivedKey)
+  
+  return verifyPassword(password, account.password_hash)
 }

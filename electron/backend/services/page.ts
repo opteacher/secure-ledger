@@ -1,5 +1,6 @@
 import { db } from '../database/init'
 import type { Page, Slot } from '../database/init'
+import { listSlots } from './slot'
 
 // 获取登录端的所有步骤页
 export function listPages(endpointId: number): Page[] {
@@ -14,10 +15,7 @@ export function getPage(id: number): (Page & { slots: Slot[] }) | null {
   const page = db.queryOne<Page>('SELECT * FROM page WHERE id = ?', [id])
   if (!page) return null
 
-  const slots = db.query<Slot>(
-    'SELECT * FROM slot WHERE page_id = ? ORDER BY order_index',
-    [id]
-  )
+  const slots = listSlots(id)
 
   return { ...page, slots }
 }

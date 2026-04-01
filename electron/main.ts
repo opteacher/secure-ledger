@@ -149,10 +149,59 @@ async function backgroundInit() {
     const { initializeDatabase } = await import('./backend/database/init')
     await initializeDatabase()
     logger.info('Database initialized successfully')
-    sendSplashProgress('数据库初始化完成', 40)
+    sendSplashProgress('数据库初始化完成', 30)
   } catch (error: any) {
     logger.error('Database initialization failed:', error)
-    sendSplashProgress('数据库初始化失败', 40)
+    sendSplashProgress('数据库初始化失败', 30)
+  }
+
+  // 初始化 RSA 密钥对并自动加密未加密数据
+  try {
+    sendSplashProgress('正在初始化加密密钥...', 40)
+    logger.info('Initializing RSA key pair...')
+    const { initializeKeyPair, isEncryptionAvailable } = await import('./backend/crypto/secureKeyStorage')
+    
+    // 检查加密服务可用性
+    const encryptionAvailable = await isEncryptionAvailable()
+    if (!encryptionAvailable) {
+      logger.error('System encryption service not available')
+      if (process.platform === 'linux') {
+        sendSplashProgress('请解锁密钥环', 50)
+      } else {
+        sendSplashProgress('加密服务不可用', 50)
+      }
+    } else {
+      const keyInitResult = await initializeKeyPair()
+      if (keyInitResult) {
+        logger.info('RSA key pair initialized successfully')
+        
+        // 同步密钥到 rsa.ts 缓存（供同步加密函数使用）
+        const { loadPrivateKey, loadPublicKey, setCachedPrivateKey, setCachedPublicKey } = await import('./backend/crypto/rsa')
+        const secureStorage = await import('./backend/crypto/secureKeyStorage')
+        const privateKey = await secureStorage.loadPrivateKey()
+        const publicKey = secureStorage.loadPublicKey()
+        if (privateKey) setCachedPrivateKey(privateKey)
+        if (publicKey) setCachedPublicKey(publicKey)
+        
+        // 自动加密未加密的敏感数据
+        sendSplashProgress('正在加密敏感数据...', 48)
+        logger.info('Auto-encrypting sensitive data...')
+        const { autoEncryptOnStartup } = await import('./backend/services/autoEncrypt')
+        const encryptResult = autoEncryptOnStartup()
+        logger.info('Auto-encryption result:', encryptResult)
+        
+        // 启动定时密钥轮换（默认7天轮换一次）
+        const { startScheduledRotation } = await import('./backend/services/keyRotation')
+        startScheduledRotation()
+        logger.info('Scheduled key rotation started')
+      } else {
+        logger.warn('RSA key pair initialization returned false')
+      }
+    }
+    sendSplashProgress('加密密钥就绪', 50)
+  } catch (error: any) {
+    logger.error('RSA key pair initialization failed:', error)
+    sendSplashProgress('加密密钥初始化失败', 50)
   }
 
   // 确保 Chromium 可用（解压并注册）
@@ -170,21 +219,22 @@ async function backgroundInit() {
     } else {
       console.warn('Chrome check failed:', result.message)
     }
-    sendSplashProgress('浏览器环境就绪', 80)
+    sendSplashProgress('浏览器环境就绪', 70)
   } catch (error) {
     console.error('Chrome check error:', error)
-    sendSplashProgress('浏览器环境检查失败', 80)
+    sendSplashProgress('浏览器环境检查失败', 70)
   }
 
   // 确保 ttyd 可用
   try {
-    sendSplashProgress('检查终端组件...', 90)
+    sendSplashProgress('检查终端组件...', 80)
     const result = await ensureTtyd()
     if (result.installed) {
       console.log('ttyd check success:', result.message)
     } else {
       console.warn('ttyd check failed:', result.message)
     }
+    sendSplashProgress('终端组件就绪', 90)
   } catch (error) {
     console.error('ttyd check error:', error)
   }

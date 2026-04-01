@@ -2,13 +2,15 @@
  * Win7 兼容版自动化服务
  * 
  * 使用 puppeteer 19.x 兼容 API（waitForXPath 等）
- * 此文件仅在 Win7 构建时替换 automation.ts
+ * 此文件仅在 Win7 构建时替换 electron/backend/services/automation.ts
+ * 
+ * 注意：构建时此文件会被复制到 electron/backend/services/ 目录
+ * 所以导入路径应该指向 electron/backend/services/ 目录下的模块
  */
 import puppeteer from 'puppeteer-core'
-import { getEndpoint } from './endpoint'
-import { getMasterKey } from './account'
-import { decrypt } from '../crypto'
-import type { EndpointFull } from './endpoint'
+import { getEndpoint } from '../electron/backend/services/endpoint'
+import { hybridDecrypt, isHybridEncrypted } from '../electron/backend/crypto/hybrid'
+import type { EndpointFull } from '../electron/backend/services/endpoint'
 
 // 延时函数
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -78,10 +80,10 @@ export async function executeLogin(endpointId: number, chromePath: string): Prom
 
           // 获取值（如果是加密的，需要解密）
           let value = slot.value
-          if (slot.is_encrypted) {
+          if (slot.is_encrypted && value) {
             try {
-              const masterKey = getMasterKey('')
-              value = decrypt(slot.value, masterKey)
+              value = hybridDecrypt(value)
+              console.log('[Automation] Decrypted value for input (length:', value.length, 'chars)')
             } catch {
               console.warn('Failed to decrypt value, using original')
             }
@@ -95,7 +97,7 @@ export async function executeLogin(endpointId: number, chromePath: string): Prom
               // 清空并输入
               await element.evaluate((el: any) => { el.value = '' })
               await element.type(value, { delay: 50 })
-              console.log('[Automation] Input completed:', value)
+              console.log('[Automation] Input completed (type:', slot.action_type, ', encrypted:', slot.is_encrypted, ')')
               break
             case 'click':
               await element.click()
@@ -103,7 +105,7 @@ export async function executeLogin(endpointId: number, chromePath: string): Prom
               break
             case 'select':
               await element.select(value)
-              console.log('[Automation] Select completed:', value)
+              console.log('[Automation] Select completed (encrypted:', slot.is_encrypted, ')')
               break
           }
 

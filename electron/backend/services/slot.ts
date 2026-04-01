@@ -1,18 +1,82 @@
 import { db } from '../database/init'
-import { encrypt, decrypt } from '../crypto'
+import { hybridEncrypt, hybridDecrypt, isHybridEncrypted } from '../crypto/hybrid'
 import type { Slot } from '../database/init'
+
+// 数据库返回的原始 Slot 类型（is_encrypted 是 INTEGER）
+interface RawSlot {
+  id: number
+  page_id: number
+  order_index: number
+  name?: string
+  element_xpath: string
+  action_type: 'input' | 'click' | 'select' | 'password' | 'keyfile'
+  value: string
+  is_encrypted: number  // 数据库中是 INTEGER (0 或 1)
+  timeout: number
+  created_at: string
+  updated_at: string
+}
+
+// 将原始 Slot 转换为 Slot
+function convertSlot(raw: RawSlot): Slot {
+  return {
+    ...raw,
+    is_encrypted: raw.is_encrypted === 1
+  }
+}
 
 // 获取步骤页的所有操作槽
 export function listSlots(pageId: number): Slot[] {
-  return db.query<Slot>(
+  const rawSlots = db.query<RawSlot>(
     'SELECT * FROM slot WHERE page_id = ? ORDER BY order_index',
     [pageId]
   )
+  return rawSlots.map(convertSlot)
 }
 
 // 获取单个操作槽
 export function getSlot(id: number): Slot | null {
-  return db.queryOne<Slot>('SELECT * FROM slot WHERE id = ?', [id]) ?? null
+  const rawSlot = db.queryOne<RawSlot>('SELECT * FROM slot WHERE id = ?', [id])
+  if (!rawSlot) return null
+  return convertSlot(rawSlot)
+}
+
+/**
+ * 加密敏感值（使用混合加密）
+ */
+function encryptValue(value: string): string {
+  if (!value) return value
+  return hybridEncrypt(value)
+}
+
+/**
+ * 解密敏感值（自动检测加密类型）
+ */
+export function decryptValue(encryptedValue: string): string {
+  if (!encryptedValue) return encryptedValue
+  
+  // 清理可能的换行符
+  const cleanValue = encryptedValue.replace(/[\r\n\s]/g, '')
+  
+  console.log('[Slot] Attempting to decrypt value, string length:', cleanValue.length)
+  
+  // 检查是否是混合加密
+  if (isHybridEncrypted(cleanValue)) {
+    console.log('[Slot] Detected encryption, attempting decryption')
+    try {
+      const decrypted = hybridDecrypt(cleanValue)
+      console.log('[Slot] Decryption successful')
+      return decrypted
+    } catch (error) {
+      console.warn('[Slot] Decryption failed:', error)
+      // 返回原值
+      return encryptedValue
+    }
+  }
+  
+  // 未加密的数据，直接返回
+  console.log('[Slot] Value not encrypted, returning as-is')
+  return encryptedValue
 }
 
 // 创建操作槽
@@ -25,7 +89,6 @@ export function createSlot(data: {
   value: string
   is_encrypted?: boolean
   timeout?: number
-  masterKey?: string // 用于加密值
 }): Slot {
   // 如果没有指定顺序，放到最后
   if (data.order_index === undefined) {
@@ -36,10 +99,10 @@ export function createSlot(data: {
     data.order_index = (maxOrder?.max ?? -1) + 1
   }
 
-  // 如果需要加密且有主密钥
+  // 如果需要加密
   let finalValue = data.value
-  if (data.is_encrypted && data.masterKey && data.value) {
-    finalValue = encrypt(data.value, data.masterKey)
+  if (data.is_encrypted && data.value) {
+    finalValue = encryptValue(data.value)
   }
 
   const result = db.run(
@@ -72,7 +135,7 @@ export function createSlot(data: {
 }
 
 // 更新操作槽
-export function updateSlot(id: number, updates: Partial<Slot> & { masterKey?: string }): boolean {
+export function updateSlot(id: number, updates: Partial<Slot>): boolean {
   const fields: string[] = []
   const values: any[] = []
 
@@ -94,9 +157,9 @@ export function updateSlot(id: number, updates: Partial<Slot> & { masterKey?: st
   }
   if (updates.value !== undefined) {
     // 检查是否需要加密
-    if (updates.is_encrypted && updates.masterKey) {
+    if (updates.is_encrypted) {
       fields.push('value = ?')
-      values.push(encrypt(updates.value, updates.masterKey))
+      values.push(encryptValue(updates.value))
     } else {
       fields.push('value = ?')
       values.push(updates.value)
@@ -127,8 +190,13 @@ export function deleteSlot(id: number): boolean {
 }
 
 // 解密操作槽的值
-export function decryptSlotValue(encryptedValue: string, masterKey: string): string {
-  return decrypt(encryptedValue, masterKey)
+export function decryptSlotValue(encryptedValue: string): string {
+  return decryptValue(encryptedValue)
+}
+
+// 解密操作槽的值（自动检测加密类型）
+export function decryptSlotValueAuto(encryptedValue: string): string {
+  return decryptValue(encryptedValue)
 }
 
 // 调整操作槽顺序

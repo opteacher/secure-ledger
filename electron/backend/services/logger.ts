@@ -14,8 +14,8 @@ interface LogConfig {
 
 let logConfig: LogConfig = {
   logDir: '',
-  maxFileSize: 10 * 1024 * 1024, // 10MB
-  maxFiles: 5
+  maxFileSize: 5 * 1024 * 1024, // 5MB - 超过此大小触发轮转
+  maxFiles: 10 // 保留最多10个日志文件
 }
 
 // 初始化日志系统
@@ -169,19 +169,51 @@ export function getLogDir(): string {
 // 获取日志内容
 export function getLogContent(maxLines: number = 500): string {
   try {
-    const logFile = getLogFilePath()
-    if (!existsSync(logFile)) {
+    const fs = require('fs')
+    const path = require('path')
+    
+    // 获取所有日志文件，按时间排序（最新的在前）
+    const files = fs.readdirSync(logConfig.logDir)
+      .filter((f: string) => f.startsWith('app-') && f.endsWith('.log'))
+      .map((f: string) => ({
+        name: f,
+        path: path.join(logConfig.logDir, f),
+        time: fs.statSync(path.join(logConfig.logDir, f)).mtime.getTime()
+      }))
+      .sort((a: any, b: any) => b.time - a.time)
+    
+    if (files.length === 0) {
       return 'No logs available'
     }
     
-    const content = readFileSync(logFile, 'utf-8')
+    // 读取最新的日志文件
+    const latestFile = files[0]
+    const content = readFileSync(latestFile.path, 'utf-8')
     const lines = content.split('\n')
     
-    if (lines.length > maxLines) {
-      return '... (Log too long, showing last ' + maxLines + ' lines)\n\n' + lines.slice(-maxLines).join('\n')
+    let result = ''
+    
+    // 如果日志文件数量超过1个，显示文件列表
+    if (files.length > 1) {
+      result += `日志文件列表 (共 ${files.length} 个):\n`
+      files.slice(0, 5).forEach((f: any, i: number) => {
+        const size = (fs.statSync(f.path).size / 1024).toFixed(2)
+        result += `  ${i + 1}. ${f.name} (${size} KB)\n`
+      })
+      if (files.length > 5) {
+        result += `  ... 还有 ${files.length - 5} 个文件\n`
+      }
+      result += '\n' + '='.repeat(50) + '\n\n'
     }
     
-    return content
+    // 显示日志内容
+    if (lines.length > maxLines) {
+      result += `... (日志过长，显示最后 ${maxLines} 行)\n\n` + lines.slice(-maxLines).join('\n')
+    } else {
+      result += content
+    }
+    
+    return result
   } catch (e: any) {
     return 'Failed to read logs: ' + e.message
   }

@@ -98,13 +98,17 @@ export const slotApi = {
   
   get: (id: number) => invoke<Slot | null>('slot:get', id),
   
-  create: (data: Partial<Slot> & { masterKey?: string }) =>
+  create: (data: Partial<Slot>) =>
     invoke<Slot>('slot:create', data),
   
-  update: (id: number, updates: Partial<Slot> & { masterKey?: string }) =>
+  update: (id: number, updates: Partial<Slot>) =>
     invoke<boolean>('slot:update', { id, updates }),
   
-  delete: (id: number) => invoke<boolean>('slot:delete', id)
+  delete: (id: number) => invoke<boolean>('slot:delete', id),
+  
+  // 解密加密的槽值
+  decryptValue: (encryptedValue: string) =>
+    invoke<string>('slot:decryptValue', { encryptedValue })
 }
 
 // ============ Chrome 检测 API ============
@@ -518,4 +522,50 @@ export const appLockApi = {
   // 发送解锁请求邮件（附带数据库文件）
   sendUnlockRequest: () =>
     invoke<{ success: boolean; message: string }>('appLock:sendUnlockRequest')
+}
+
+// ============ 密钥轮换 API ============
+export interface RotationResult {
+  success: boolean
+  message: string
+  details: {
+    appLockPassword: boolean
+    slotsTotal: number
+    slotsReEncrypted: number
+    slotsSkipped: number
+    errors: string[]
+    backupPath?: string
+  }
+}
+
+export interface RotationStatus {
+  isRotating: boolean
+  isScheduled: boolean
+  lastRotationTime: string | null
+  nextRotationTime: string | null
+}
+
+export const keyRotationApi = {
+  // 执行密钥轮换
+  rotate: () =>
+    invoke<RotationResult>('keyRotation:rotate'),
+  
+  // 获取轮换状态
+  getStatus: () =>
+    invoke<RotationStatus>('keyRotation:status'),
+  
+  // 启动定时轮换
+  start: (intervalMs?: number) =>
+    invoke<{ success: boolean; message: string }>('keyRotation:start', { intervalMs }),
+  
+  // 停止定时轮换
+  stop: () =>
+    invoke<{ success: boolean; message: string }>('keyRotation:stop')
+}
+
+// ============ 安全密钥存储 API ============
+export const secureKeyStorageApi = {
+  // 检查加密服务是否可用
+  isEncryptionAvailable: () =>
+    invoke<{ available: boolean }>('secureKeyStorage:isEncryptionAvailable')
 }

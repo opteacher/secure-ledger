@@ -380,6 +380,32 @@
                     <button @click="($refs.importInput as HTMLInputElement).click()" class="btn-secondary text-sm">导入</button>
                   </div>
                 </div>
+                
+                <!-- 加密迁移 -->
+                <!-- 密钥轮换 -->
+                <div class="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
+                  <div>
+                    <p class="text-sm font-medium text-fg-primary">密钥轮换</p>
+                    <p class="text-xs text-fg-muted">重新生成加密密钥并刷新数据</p>
+                    <p v-if="encryptionAvailable === false" class="text-xs mt-1 text-red-600">
+                      ⚠️ 系统加密服务不可用
+                      <span v-if="platformInfo?.isLinux">（请解锁密钥环）</span>
+                    </p>
+                    <p v-else-if="rotationStatus" class="text-xs mt-1 text-fg-muted">
+                      {{ rotationStatus.lastRotationTime ? `上次: ${formatDate(rotationStatus.lastRotationTime)}` : '尚未轮换' }}
+                      <span v-if="rotationStatus.isScheduled && rotationStatus.nextRotationTime" class="text-primary-600 ml-1">
+                        | 下次: {{ formatDate(rotationStatus.nextRotationTime) }}
+                      </span>
+                    </p>
+                  </div>
+                  <button 
+                    @click="performKeyRotation" 
+                    :disabled="rotationLoading || rotationStatus?.isRotating || encryptionAvailable === false"
+                    class="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {{ rotationLoading || rotationStatus?.isRotating ? '轮换中...' : '轮换' }}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -855,7 +881,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEndpointStore } from '../stores/endpoint'
-import { loginApi, terminalApi, terminalConfigApi, endpointApi, sshApi, appApi, ttydApi, plinkApi, sshpassApi, platformApi, browserApi, appLockApi, type ChromeInfo, type TerminalTool, type TerminalConfig, type EndpointFull, type Endpoint, type SSHConfig, type TtydStatus, type TtydPathInfo, type PortCheckResult, type PlinkPathInfo, type SshpassPathInfo, type PlatformInfo, type BrowserConfig, type AppLockSettings } from '../apis'
+import { loginApi, terminalApi, terminalConfigApi, endpointApi, sshApi, appApi, ttydApi, plinkApi, sshpassApi, platformApi, browserApi, appLockApi, keyRotationApi, secureKeyStorageApi, slotApi, type ChromeInfo, type TerminalTool, type TerminalConfig, type EndpointFull, type Endpoint, type SSHConfig, type TtydStatus, type TtydPathInfo, type PortCheckResult, type PlinkPathInfo, type SshpassPathInfo, type PlatformInfo, type BrowserConfig, type AppLockSettings, type RotationStatus } from '../apis'
 import { safeConfirm, messageSuccess, messageError, messageWarning } from '../utils/dialog'
 import UploadModal from '../components/UploadModal.vue'
 
@@ -973,6 +999,11 @@ let activityListener: (() => void) | null = null
 // 锁定相关状态
 const lockDelayMinutes = ref(5)
 
+// 密钥轮换相关状态
+const rotationStatus = ref<RotationStatus | null>(null)
+const rotationLoading = ref(false)
+const encryptionAvailable = ref<boolean | null>(null)
+
 onMounted(async () => {
   await endpointStore.loadEndpoints()
   // 初始化锁定设置
@@ -1024,10 +1055,92 @@ watch(showSettingsModal, async (newVal) => {
     await refreshBrowserList()
     // 加载终端工具
     await refreshSettingsTerminalList()
-    // 加载锁定设置
-    await refreshLockSettings()
+// 加载锁定设置
+await refreshLockSettings()
+// 检查加密服务可用性
+    await checkEncryptionAvailable()
+    // 加载密钥轮换状态
+    await refreshRotationStatus()
   }
 })
+
+// 刷新密钥轮换状态
+async function refreshRotationStatus() {
+  try {
+    rotationStatus.value = await keyRotationApi.getStatus()
+  } catch (e) {
+    console.error('Failed to get rotation status:', e)
+  }
+}
+
+// 检查加密服务可用性
+async function checkEncryptionAvailable() {
+  try {
+    const result = await secureKeyStorageApi.isEncryptionAvailable()
+    encryptionAvailable.value = result.available
+    
+    if (!result.available && platformInfo.value?.isLinux) {
+      console.warn('[Home] Encryption not available - Linux keyring may be locked')
+    }
+  } catch (e) {
+    console.error('Failed to check encryption availability:', e)
+    encryptionAvailable.value = false
+  }
+}
+
+// 格式化日期
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+// 执行密钥轮换
+async function performKeyRotation() {
+  // 检查加密服务可用性
+  if (encryptionAvailable.value === false) {
+    const linuxMsg = platformInfo.value?.isLinux 
+      ? '\n\nLinux 用户：请确保已解锁密钥环（GNOME Keyring 或 KWallet）'
+      : ''
+    messageError('系统加密服务不可用，无法执行密钥轮换。' + linuxMsg)
+    return
+  }
+  
+  const confirmed = await safeConfirm(
+    '确定要轮换加密密钥吗？\n\n此操作将：\n1. 用旧密钥解密所有数据\n2. 生成新密钥对\n3. 用新密钥重新加密所有数据\n\n建议在操作前备份数据库。',
+    {
+      title: '密钥轮换',
+      confirmText: '开始轮换',
+      type: 'warning'
+    }
+  )
+  
+  if (!confirmed) return
+  
+  rotationLoading.value = true
+  try {
+    const result = await keyRotationApi.rotate()
+    if (result.success) {
+      messageSuccess(`密钥轮换完成: ${result.details.slotsReEncrypted} 个数据已重新加密`)
+    } else {
+      messageError(`密钥轮换失败: ${result.message}`)
+      if (result.details.errors.length > 0) {
+        console.error('Rotation errors:', result.details.errors)
+      }
+}
+await refreshRotationStatus()
+} catch (e: any) {
+    messageError('密钥轮换出错: ' + e.message)
+  } finally {
+    rotationLoading.value = false
+  }
+}
 
 // 刷新登录端列表
 async function refreshList() {
@@ -1716,8 +1829,23 @@ async function selectTerminal(terminal: TerminalConfig) {
     const passwordSlot = slots.find(s => s.name === 'SSH密码')
     const keyfileSlot = slots.find(s => s.name === 'SSH密钥文件')
     const username = usernameSlot?.value
-    const password = passwordSlot?.value
     const keyfilePath = keyfileSlot?.value
+    
+    // 解密密码（如果加密的话）
+    let password: string | undefined
+    if (passwordSlot?.value) {
+      if (passwordSlot.is_encrypted) {
+        try {
+          password = await slotApi.decryptValue(passwordSlot.value)
+        } catch (e) {
+          console.error('Failed to decrypt SSH password:', e)
+          messageError('密码解密失败')
+          return
+        }
+      } else {
+        password = passwordSlot.value
+      }
+    }
     
     const result = await terminalApi.launchSSH({
       terminalId: terminal.terminal_type || '',

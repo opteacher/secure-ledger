@@ -6,7 +6,7 @@
 
 import Database from 'better-sqlite3'
 import { join } from 'path'
-import { hashPassword, generateSalt, deriveKey, generateMasterKey, encryptMasterKey } from '../electron/backend/crypto'
+import { hashPassword } from '../electron/backend/crypto'
 
 interface TestUserConfig {
   username: string
@@ -17,6 +17,7 @@ interface TestUserConfig {
 const TEST_USERS: TestUserConfig[] = [
   { username: 'admin', password: 'admin123' }
 ]
+
 function createTestUser(db: Database.Database, user: TestUserConfig): void {
   const { username, password } = user
 
@@ -28,21 +29,15 @@ function createTestUser(db: Database.Database, user: TestUserConfig): void {
     return
   }
 
-  // 生成密码哈希和盐
-  const salt = generateSalt()
+  // 生成密码哈希
   const passwordHash = hashPassword(password)
 
-  // 派生密钥并加密主密钥
-  const derivedKey = deriveKey(password, salt)
-  const masterKey = generateMasterKey()
-  const encryptedMasterKey = encryptMasterKey(masterKey, derivedKey)
-
-  // 插入账户
+  // 插入账户（不再需要 master_key 和 salt）
   db.prepare(
-    `INSERT INTO account (username, password_hash, master_key, salt) VALUES (?, ?, ?, ?)`
-  ).run(username, passwordHash, encryptedMasterKey, salt)
+    `INSERT INTO account (username, password_hash) VALUES (?, ?)`
+  ).run(username, passwordHash)
 
-  console.log(`✅ 测试用户创建成功：${username} / ${password}`)
+  console.log(`✅ 测试用户创建成功：${username}`)
 }
 
 function main() {
@@ -80,7 +75,7 @@ function main() {
     console.log('')
     console.log('登录信息:')
     TEST_USERS.forEach(user => {
-      console.log(`  - ${user.username} / ${user.password}`)
+      console.log(`  - ${user.username} / ******`)  // 密码已脱敏
     })
 
     db.close()

@@ -351,7 +351,7 @@
                       </div>
                       <div class="flex gap-2 items-center">
                         <label class="flex items-center gap-1 text-fg-muted">
-                          <input v-model="slot.is_encrypted" type="checkbox" class="rounded" />
+                          <input v-model="slot.is_encrypted" type="checkbox" class="rounded" @change="onSlotEncryptedChange(slot)" />
                           加密
                         </label>
                         <span class="text-fg-muted ml-auto">延时:</span>
@@ -754,15 +754,37 @@ onMounted(async () => {
           // 用户名
           const usernameSlot = slots.find(s => s.name === 'SSH用户名')
           if (usernameSlot) sshConfig.value.username = usernameSlot.value || ''
-          // 密码
+          // 密码（需要解密）
           const passwordSlot = slots.find(s => s.name === 'SSH密码')
-          if (passwordSlot) sshConfig.value.password = passwordSlot.value || ''
+          if (passwordSlot && passwordSlot.value) {
+            if (passwordSlot.is_encrypted) {
+              try {
+                sshConfig.value.password = await slotApi.decryptValue(passwordSlot.value)
+              } catch (e) {
+                console.error('Failed to decrypt SSH password:', e)
+                sshConfig.value.password = ''
+              }
+            } else {
+              sshConfig.value.password = passwordSlot.value
+            }
+          }
           // 密钥文件
           const keyfileSlot = slots.find(s => s.name === 'SSH密钥文件')
           if (keyfileSlot) sshConfig.value.keyfilePath = keyfileSlot.value || ''
-          // 密钥密码
+          // 密钥密码（需要解密）
           const passphraseSlot = slots.find(s => s.name === 'SSH密钥密码')
-          if (passphraseSlot) sshConfig.value.passphrase = passphraseSlot.value || ''
+          if (passphraseSlot && passphraseSlot.value) {
+            if (passphraseSlot.is_encrypted) {
+              try {
+                sshConfig.value.passphrase = await slotApi.decryptValue(passphraseSlot.value)
+              } catch (e) {
+                console.error('Failed to decrypt SSH passphrase:', e)
+                sshConfig.value.passphrase = ''
+              }
+            } else {
+              sshConfig.value.passphrase = passphraseSlot.value
+            }
+          }
         }
         
         if (pages.value[0].url && loginType.value === 'web') {
@@ -1072,6 +1094,13 @@ function selectElement(element: PageElement) {
 function onSelectedElementClick(element: PageElement, index: number) {
   if (isSelectingElement.value) return
   messageInfo(`元素XPath: ${element.xpath}，操作序号: ${index + 1}`)
+}
+
+// 加密复选框变化时，取消加密则清空值
+function onSlotEncryptedChange(slot: any) {
+  if (!slot.is_encrypted) {
+    slot.value = ''
+  }
 }
 
 function addSlot() {

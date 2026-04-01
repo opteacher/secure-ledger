@@ -1,5 +1,6 @@
 import { db } from '../database/init'
 import type { Endpoint, Page, Slot } from '../database/init'
+import { listSlots } from './slot'
 
 // 完整的登录端数据 (包含步骤和操作)
 export interface EndpointFull extends Endpoint {
@@ -22,10 +23,7 @@ export function getEndpoint(id: number): EndpointFull | null {
   )
 
   const pagesWithSlots = pages.map(page => {
-    const slots = db.query<Slot>(
-      'SELECT * FROM slot WHERE page_id = ? ORDER BY order_index',
-      [page.id]
-    )
+    const slots = listSlots(page.id)
     return { ...page, slots }
   })
 

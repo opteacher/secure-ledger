@@ -1,9 +1,8 @@
 import { getEndpoint } from './endpoint'
-import { getMasterKey } from './account'
-import { decrypt } from '../crypto'
 import { launchBrowser, connectToExistingBrowser, analyzeBrowserForPuppeteer, type PuppeteerVersion } from './puppeteerManager'
 import { getBrowserList } from './browser'
 import { checkBrowserInstance } from './browserInstance'
+import { decryptSlotValue } from './slot'
 import type { EndpointFull } from './endpoint'
 
 // 延时函数
@@ -156,20 +155,16 @@ export async function executeLogin(
 
             // 获取值（如果是加密的，需要解密）
             let value = slot.value
-            if (slot.is_encrypted) {
-              try {
-                const masterKey = getMasterKey('')
-                value = decrypt(slot.value, masterKey)
-              } catch {
-                console.warn('Failed to decrypt value, using original')
-              }
+            if (slot.is_encrypted && value) {
+              value = decryptSlotValue(value)
+              console.log('[Automation] Decrypted value for input (length:', value.length, 'chars)')
             }
-
+            
             // 执行操作
             switch (slot.action_type) {
               case 'input':
                 await locator.fill(value)
-                console.log('[Automation] Input completed:', value)
+                console.log('[Automation] Input completed (type:', slot.action_type, ', encrypted:', slot.is_encrypted, ')')
                 break
               case 'click':
                 await locator.click()
@@ -177,7 +172,7 @@ export async function executeLogin(
                 break
               case 'select':
                 await locator.select({ value })
-                console.log('[Automation] Select completed:', value)
+                console.log('[Automation] Select completed (encrypted:', slot.is_encrypted, ')')
                 break
             }
           } else {
@@ -193,15 +188,11 @@ export async function executeLogin(
             // 等待指定时间
             await delay(slot.timeout || 200)
             
-            // 获取值
+            // 获取值（如果是加密的，需要解密）
             let value = slot.value
-            if (slot.is_encrypted) {
-              try {
-                const masterKey = getMasterKey('')
-                value = decrypt(slot.value, masterKey)
-              } catch {
-                console.warn('Failed to decrypt value, using original')
-              }
+            if (slot.is_encrypted && value) {
+              value = decryptSlotValue(value)
+              console.log('[Automation] Decrypted value for input (length:', value.length, 'chars)')
             }
             
             // 执行操作（使用 ElementHandle API）
@@ -212,7 +203,7 @@ export async function executeLogin(
                 // 清空并输入
                 await element.evaluate((el: Element) => { (el as HTMLInputElement).value = '' })
                 await element.type(value, { delay: 50 })
-                console.log('[Automation] Input completed:', value)
+                console.log('[Automation] Input completed (type:', slot.action_type, ', encrypted:', slot.is_encrypted, ')')
                 break
               case 'click':
                 await element.click()
@@ -220,7 +211,7 @@ export async function executeLogin(
                 break
               case 'select':
                 await element.select(value)
-                console.log('[Automation] Select completed:', value)
+                console.log('[Automation] Select completed (encrypted:', slot.is_encrypted, ')')
                 break
             }
           }

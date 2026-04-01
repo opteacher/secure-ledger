@@ -3,6 +3,7 @@
  * 管理应用自动锁定设置和解锁验证
  */
 import { db } from '../database/init'
+import { hybridEncrypt, hybridDecrypt, isHybridEncrypted } from '../crypto/hybrid'
 
 export interface AppLockSettings {
   id: number
@@ -116,16 +117,20 @@ export function updateLockSettings(settings: {
 }
 
 /**
- * 设置锁定密码（明文存储）
+ * 设置锁定密码（混合加密存储）
+ * 支持任意长度密码
  */
 export function setLockPassword(password: string): { success: boolean; message: string } {
   if (!password || password.length !== 6) {
     return { success: false, message: '密码长度必须为6位' }
   }
   
+  // 使用混合加密方案（支持任意长度）
+  const encryptedPassword = hybridEncrypt(password)
+  
   db.run(
     `UPDATE app_lock_settings SET lock_password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1`,
-    [password]  // 明文存储
+    [encryptedPassword]
   )
   
   return { success: true, message: '密码设置成功' }
@@ -133,6 +138,8 @@ export function setLockPassword(password: string): { success: boolean; message: 
 
 /**
  * 验证锁定密码
+ * 只支持混合加密格式（新方案）
+ * 旧的 PBKDF2 哈希格式已被废弃
  */
 export function verifyLockPassword(password: string): boolean {
   const result = db.queryOne<{ lock_password_hash: string }>(
@@ -144,8 +151,24 @@ export function verifyLockPassword(password: string): boolean {
     return true
   }
   
-  // 明文比较
-  return password === result.lock_password_hash
+  const storedPassword = result.lock_password_hash
+  
+  // 检查是否是混合加密（新方案）
+  if (isHybridEncrypted(storedPassword)) {
+    // 混合加密：自动解密并比较
+    try {
+      const decryptedPassword = hybridDecrypt(storedPassword)
+      return password === decryptedPassword
+    } catch (error) {
+      console.error('[AppLock] Failed to decrypt password:', error)
+      return false
+    }
+  }
+  
+  // 旧格式或明文（不再支持）
+  console.warn('[AppLock] Legacy password format detected, not supported anymore')
+  console.warn('[AppLock] User should set a new password')
+  return false
 }
 
 /**
