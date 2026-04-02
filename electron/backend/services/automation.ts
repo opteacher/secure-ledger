@@ -3,10 +3,12 @@ import { launchBrowser, connectToExistingBrowser, analyzeBrowserForPuppeteer, ty
 import { getBrowserList } from './browser'
 import { checkBrowserInstance } from './browserInstance'
 import { decryptSlotValue } from './slot'
+import * as endpointShare from './endpointShare'
 import type { EndpointFull } from './endpoint'
 
 // 延时函数
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
 
 // 执行登录自动化
 export async function executeLogin(
@@ -21,6 +23,25 @@ export async function executeLogin(
   if (!endpoint) {
     throw new Error('Endpoint not found')
   }
+  
+  // ============================================
+  // Token 权限检查
+  // ============================================
+  if (endpoint.share_token) {
+    console.log('[Automation] Checking token permission for endpoint:', endpointId)
+    
+    const permission = await endpointShare.checkTokenPermission(endpoint)
+    
+    if (!permission.allowed) {
+      // Token 无效或已过期
+      console.log('[Automation] Token permission denied:', permission.reason)
+      
+      throw new Error(permission.reason || 'Token 无效或已过期')
+    }
+    
+    console.log('[Automation] Token permission granted')
+  }
+  
   console.log('[Automation] Page count:', endpoint.pages.length)
   for (const p of endpoint.pages) {
     console.log('[Automation] Page:', p.url, 'slot count:', p.slots.length)
@@ -150,14 +171,13 @@ export async function executeLogin(
             const locator = page.locator(`xpath=${slot.element_xpath}`)
             await locator.wait({ timeout: 10000 })
             
-            // 等待指定时间
+// 等待指定时间
             await delay(slot.timeout || 200)
 
             // 获取值（如果是加密的，需要解密）
             let value = slot.value
             if (slot.is_encrypted && value) {
               value = decryptSlotValue(value)
-              console.log('[Automation] Decrypted value for input (length:', value.length, 'chars)')
             }
             
             // 执行操作
@@ -192,7 +212,6 @@ export async function executeLogin(
             let value = slot.value
             if (slot.is_encrypted && value) {
               value = decryptSlotValue(value)
-              console.log('[Automation] Decrypted value for input (length:', value.length, 'chars)')
             }
             
             // 执行操作（使用 ElementHandle API）
@@ -224,6 +243,14 @@ export async function executeLogin(
 
       // 每个步骤页之间等待一下
       await delay(500)
+    }
+    
+    // ============================================
+    // 更新 Token 使用次数
+    // ============================================
+    if (endpoint.share_token) {
+      console.log('[Automation] Updating token usage count')
+      await endpointShare.incrementTokenUsage(endpoint)
     }
 
     return { 

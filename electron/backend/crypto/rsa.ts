@@ -1,8 +1,12 @@
 /**
  * RSA 加密模块
  * 
- * 提供同步的 RSA 加密/解密接口
- * 密钥通过 secureKeyStorage 安全加载
+ * 正确的 RSA 用法：
+ * - 加密：公钥加密（publicEncrypt）
+ * - 解密：私钥解密（privateDecrypt）
+ * 
+ * 私钥加密存储在 private.pem.enc，需要系统密钥解密
+ * 公钥明文存储在 public.pem
  */
 import crypto from 'crypto'
 
@@ -58,14 +62,18 @@ export function clearKeyCache(): void {
   cachedPublicKey = null
 }
 
+// ============================================
+// 新方案：公钥加密 / 私钥解密（正确的 RSA 用法）
+// ============================================
+
 /**
- * 使用私钥加密数据
+ * 使用公钥加密数据
  * @param plaintext 明文
  * @returns Base64 编码的密文，失败返回 null
  */
-export function privateEncrypt(plaintext: string): string | null {
-  if (!cachedPrivateKey) {
-    console.error('[Crypto] No key available for encryption')
+export function publicEncrypt(plaintext: string): string | null {
+  if (!cachedPublicKey) {
+    console.error('[Crypto] No public key available for encryption')
     return null
   }
   
@@ -77,7 +85,131 @@ export function privateEncrypt(plaintext: string): string | null {
   const byteLength = buffer.length
   
   if (byteLength > 245) {
-    console.error(`[Crypto] Data too long: ${byteLength} bytes`)
+    console.error(`[Crypto] Data too long for RSA: ${byteLength} bytes`)
+    return null
+  }
+  
+  try {
+    const encrypted = crypto.publicEncrypt(
+      {
+        key: cachedPublicKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      },
+      buffer
+    )
+    return encrypted.toString('base64')
+  } catch (error) {
+    console.error('[Crypto] Public encryption failed:', error)
+    return null
+  }
+}
+
+/**
+ * 使用公钥加密数据（指定公钥）
+ * @param plaintext 明文
+ * @param publicKey PEM 编码的公钥
+ * @returns Base64 编码的密文，失败返回 null
+ */
+export function publicEncryptWithKey(plaintext: string, publicKey: string): string | null {
+  if (!publicKey || !plaintext) {
+    return null
+  }
+  
+  const buffer = Buffer.from(plaintext, 'utf-8')
+  
+  if (buffer.length > 245) {
+    return null
+  }
+  
+  try {
+    const encrypted = crypto.publicEncrypt(
+      {
+        key: publicKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      },
+      buffer
+    )
+    return encrypted.toString('base64')
+  } catch (error) {
+    console.error('[Crypto] Public encryption with key failed:', error)
+    return null
+  }
+}
+
+/**
+ * 使用私钥解密数据
+ * @param ciphertext Base64 编码的密文
+ * @returns 解密后的明文，失败返回 null
+ */
+export function privateDecrypt(ciphertext: string): string | null {
+  if (!cachedPrivateKey) {
+    return null
+  }
+  
+  try {
+    const buffer = Buffer.from(ciphertext, 'base64')
+    const decrypted = crypto.privateDecrypt(
+      {
+        key: cachedPrivateKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      },
+      buffer
+    )
+    return decrypted.toString('utf-8')
+  } catch {
+    // 静默失败 - 可能是旧格式数据（公钥加密），由调用方尝试公钥解密
+    return null
+  }
+}
+
+/**
+ * 使用私钥解密数据（指定私钥）
+ * @param ciphertext Base64 编码的密文
+ * @param privateKey PEM 编码的私钥
+ * @returns 解密后的明文，失败返回 null
+ */
+export function privateDecryptWithKey(ciphertext: string, privateKey: string): string | null {
+  if (!privateKey || !ciphertext) {
+    return null
+  }
+  
+  try {
+    const buffer = Buffer.from(ciphertext, 'base64')
+    const decrypted = crypto.privateDecrypt(
+      {
+        key: privateKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      },
+      buffer
+    )
+    return decrypted.toString('utf-8')
+  } catch {
+    // 静默失败
+    return null
+  }
+}
+
+// ============================================
+// 旧方案：私钥加密 / 公钥解密（已废弃，仅用于数据迁移）
+// ============================================
+
+/**
+ * @deprecated 使用 publicEncrypt 代替
+ * 使用私钥加密数据（旧方案，仅用于数据迁移）
+ */
+export function privateEncrypt(plaintext: string): string | null {
+  if (!cachedPrivateKey) {
+    console.error('[Crypto] No private key available for encryption')
+    return null
+  }
+  
+  if (!plaintext) {
+    return null
+  }
+  
+  const buffer = Buffer.from(plaintext, 'utf-8')
+  
+  if (buffer.length > 245) {
     return null
   }
   
@@ -91,19 +223,17 @@ export function privateEncrypt(plaintext: string): string | null {
     )
     return encrypted.toString('base64')
   } catch (error) {
-    console.error('[Crypto] Encryption failed:', error)
+    console.error('[Crypto] Private encryption failed:', error)
     return null
   }
 }
 
 /**
- * 使用公钥解密数据
- * @param ciphertext Base64 编码的密文
- * @returns 解密后的明文，失败返回 null
+ * @deprecated 使用 privateDecrypt 代替
+ * 使用公钥解密数据（旧方案，仅用于数据迁移）
  */
 export function publicDecrypt(ciphertext: string): string | null {
   if (!cachedPublicKey) {
-    console.error('[Crypto] No key available for decryption')
     return null
   }
   
@@ -117,22 +247,49 @@ export function publicDecrypt(ciphertext: string): string | null {
       buffer
     )
     return decrypted.toString('utf-8')
-  } catch (error) {
-    console.error('[Crypto] Decryption failed:', error)
+  } catch {
+    // 静默失败 - 可能是新格式数据（私钥加密）
     return null
   }
 }
 
 /**
- * 检查值是否已被加密
- * 静默检查，不打印错误日志
+ * @deprecated 用于旧数据迁移
+ * 使用指定公钥解密数据（旧方案）
+ */
+export function publicDecryptWithKey(ciphertext: string, publicKey: string): string | null {
+  if (!publicKey || !ciphertext) {
+    return null
+  }
+  
+  try {
+    const buffer = Buffer.from(ciphertext, 'base64')
+    const decrypted = crypto.publicDecrypt(
+      {
+        key: publicKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      },
+      buffer
+    )
+    return decrypted.toString('utf-8')
+  } catch {
+    // 静默失败
+    return null
+  }
+}
+
+// ============================================
+// 辅助函数
+// ============================================
+
+/**
+ * 检查值是否已被加密（检测 RSA 密文格式）
  */
 export function isEncrypted(value: string): boolean {
   if (!value || value.length < 10) {
     return false
   }
   
-  // 移除可能的换行符和空格
   const cleanValue = value.replace(/[\r\n\s]/g, '')
   
   // 检查是否是有效的 Base64
@@ -140,25 +297,30 @@ export function isEncrypted(value: string): boolean {
     return false
   }
   
-  // 尝试解码并检查长度
+  // 检查长度是否为 256 字节（RSA-2048 密文）
   try {
     const buffer = Buffer.from(cleanValue, 'base64')
-    const decodedLength = buffer.length
-    
-    if (decodedLength !== 256) {
-      return false
-    }
-  } catch (e) {
+    return buffer.length === 256
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 检查值是否是旧格式加密（私钥加密）
+ * 通过尝试用公钥解密来判断
+ */
+export function isOldFormatEncrypted(value: string): boolean {
+  if (!isEncrypted(value)) {
     return false
   }
   
-  // 静默尝试解密来最终确认
   if (!cachedPublicKey) {
     return false
   }
   
   try {
-    const buffer = Buffer.from(cleanValue, 'base64')
+    const buffer = Buffer.from(value.replace(/[\r\n\s]/g, ''), 'base64')
     crypto.publicDecrypt(
       {
         key: cachedPublicKey,
@@ -167,42 +329,82 @@ export function isEncrypted(value: string): boolean {
       buffer
     )
     return true
-  } catch (e) {
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 检查值是否是新格式加密（公钥加密）
+ * 通过尝试用私钥解密来判断
+ */
+export function isNewFormatEncrypted(value: string): boolean {
+  if (!isEncrypted(value)) {
+    return false
+  }
+  
+  if (!cachedPrivateKey) {
+    return false
+  }
+  
+  try {
+    const buffer = Buffer.from(value.replace(/[\r\n\s]/g, ''), 'base64')
+    crypto.privateDecrypt(
+      {
+        key: cachedPrivateKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      },
+      buffer
+    )
+    return true
+  } catch {
     return false
   }
 }
 
 /**
  * 加密敏感值（如果尚未加密）
- * @param value 明文或已加密的值
- * @param force 是否强制重新加密
- * @returns 加密后的值
+ * 使用新的公钥加密方案
  */
 export function encryptIfNeeded(value: string, force: boolean = false): string {
   if (!value) {
     return value
   }
   
-  // 如果不是强制加密，且值已经被加密，直接返回
-  if (!force && isEncrypted(value)) {
+  // 如果已经是新格式加密，且不强制重新加密，直接返回
+  if (!force && isNewFormatEncrypted(value)) {
     return value
   }
   
-  const encrypted = privateEncrypt(value)
+  const encrypted = publicEncrypt(value)
   return encrypted || value
 }
 
 /**
- * 解密值（如果已加密）
- * @param value 可能已加密的值
- * @returns 解密后的明文
+ * 解密值（自动检测格式）
+ * 支持新旧两种格式
  */
 export function decryptIfNeeded(value: string): string {
   if (!value) {
     return value
   }
   
-  // 尝试解密
-  const decrypted = publicDecrypt(value)
-  return decrypted || value
+  // 尝试新格式（私钥解密）
+  if (cachedPrivateKey) {
+    const decrypted = privateDecrypt(value)
+    if (decrypted) {
+      return decrypted
+    }
+  }
+  
+  // 尝试旧格式（公钥解密）- 用于迁移
+  if (cachedPublicKey) {
+    const decrypted = publicDecrypt(value)
+    if (decrypted) {
+      return decrypted
+    }
+  }
+  
+  // 无法解密，返回原值
+  return value
 }

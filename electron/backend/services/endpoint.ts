@@ -1,6 +1,7 @@
 import { db } from '../database/init'
 import type { Endpoint, Page, Slot } from '../database/init'
 import { listSlots } from './slot'
+import * as endpointShare from './endpointShare'
 
 // 完整的登录端数据 (包含步骤和操作)
 export interface EndpointFull extends Endpoint {
@@ -17,6 +18,18 @@ export function getEndpoint(id: number): EndpointFull | null {
   const endpoint = db.queryOne<Endpoint>('SELECT * FROM endpoint WHERE id = ?', [id])
   if (!endpoint) return null
 
+  // Token endpoint: 从 Token 实时解码获取 pages/slots
+  if (endpoint.share_token) {
+    const pages = endpointShare.decodeTokenPages(endpoint.share_token)
+    if (pages) {
+      return { ...endpoint, pages }
+    }
+    // Token 解码失败，返回空 pages
+    console.warn('[Endpoint] Failed to decode token pages for endpoint:', id)
+    return { ...endpoint, pages: [] }
+  }
+
+  // 普通 endpoint: 从数据库获取 pages/slots
   const pages = db.query<Page>(
     'SELECT * FROM page WHERE endpoint_id = ? ORDER BY order_index',
     [id]
@@ -36,9 +49,10 @@ export function createEndpoint(data: {
   icon?: string
   login_type: 'web' | 'ssh'
 }): Endpoint {
+  const now = new Date().toISOString()
   const result = db.run(
-    `INSERT INTO endpoint (name, icon, login_type) VALUES (?, ?, ?)`,
-    [data.name, data.icon || '', data.login_type]
+    `INSERT INTO endpoint (name, icon, login_type, share_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
+    [data.name, data.icon || '', data.login_type, '', now, now]
   )
 
   return {
@@ -46,8 +60,9 @@ export function createEndpoint(data: {
     name: data.name,
     icon: data.icon || '',
     login_type: data.login_type,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    share_token: '',
+    created_at: now,
+    updated_at: now
   }
 }
 

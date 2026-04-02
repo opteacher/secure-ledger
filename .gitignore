@@ -52,3 +52,9 @@ __pycache__/
 # Large binaries (download separately)
 chromiums/
 build-chromium/
+
+# Internal tools (not for distribution)
+tools/
+
+# Decrypted output files
+*.xlsx

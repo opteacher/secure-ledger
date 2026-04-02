@@ -1,6 +1,6 @@
 {
   "name": "secure-ledger",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "密钥终端 - 凭证管理与自动化登录平台 (Windows 7 兼容版)",
   "main": "dist-electron/main.js",
   "homepage": "https://github.com/secure-ledger/secure-ledger",

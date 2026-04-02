@@ -58,24 +58,19 @@ export function decryptValue(encryptedValue: string): string {
   // 清理可能的换行符
   const cleanValue = encryptedValue.replace(/[\r\n\s]/g, '')
   
-  console.log('[Slot] Attempting to decrypt value, string length:', cleanValue.length)
-  
   // 检查是否是混合加密
   if (isHybridEncrypted(cleanValue)) {
-    console.log('[Slot] Detected encryption, attempting decryption')
     try {
       const decrypted = hybridDecrypt(cleanValue)
-      console.log('[Slot] Decryption successful')
       return decrypted
     } catch (error) {
-      console.warn('[Slot] Decryption failed:', error)
+      console.warn('[Slot] Decryption failed')
       // 返回原值
       return encryptedValue
     }
   }
   
   // 未加密的数据，直接返回
-  console.log('[Slot] Value not encrypted, returning as-is')
   return encryptedValue
 }
 

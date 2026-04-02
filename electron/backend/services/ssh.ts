@@ -45,15 +45,6 @@ function getConnectionConfig(config: SSHConfig): any {
     username: config.username,
   }
   
-  console.log('SSH连接配置:', {
-    host: config.host,
-    port: config.port || 22,
-    username: config.username,
-    hasPassword: !!config.password,
-    hasKeyfilePath: !!config.keyfilePath,
-    hasPrivateKey: !!config.privateKey
-  })
-  
   // 优先使用密钥文件
   if (config.keyfilePath && existsSync(config.keyfilePath)) {
     try {
@@ -61,18 +52,15 @@ function getConnectionConfig(config: SSHConfig): any {
       if (config.passphrase) {
         connectionConfig.passphrase = config.passphrase
       }
-      console.log('使用密钥文件认证:', config.keyfilePath)
     } catch (e) {
-      console.error('读取密钥文件失败:', e)
+      console.error('[SSH] Failed to read keyfile')
     }
   } else if (config.privateKey) {
     connectionConfig.privateKey = config.privateKey
-    console.log('使用 privateKey 认证')
   } else if (config.password) {
     connectionConfig.password = config.password
-    console.log('使用密码认证')
   } else {
-    console.warn('未配置任何认证方式!')
+    console.warn('[SSH] No authentication method configured')
   }
   
   return connectionConfig
@@ -378,7 +366,7 @@ export function uploadWithProgress(config: UploadConfig): Promise<{ success: boo
               // 上传文件
               sftp.fastPut(file.path, remoteFilePath, (putErr) => {
                 if (putErr) {
-                  console.error(`上传失败: ${file.relativePath}`, putErr.message)
+                  console.error(`Upload failed: ${file.relativePath}`, putErr.message)
                 } else {
                   filesUploaded++
                   bytesTransferred += file.size

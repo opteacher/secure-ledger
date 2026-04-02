@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { join } from 'path'
-import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, renameSync } from 'fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, renameSync, readdirSync, unlinkSync, rmSync, writeFileSync } from 'fs'
 
 // 日志级别
 type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
@@ -18,10 +18,45 @@ let logConfig: LogConfig = {
   maxFiles: 10 // 保留最多10个日志文件
 }
 
+// 版本标记文件名
+const VERSION_FILE = '.version'
+
+// 检测版本变化，如果变化则清理日志
+function checkVersionAndClearLogs(): void {
+  try {
+    const userDataPath = app.getPath('userData')
+    const versionFile = join(userDataPath, VERSION_FILE)
+    const currentVersion = app.getVersion()
+    
+    if (existsSync(versionFile)) {
+      const storedVersion = readFileSync(versionFile, 'utf-8').trim()
+      if (storedVersion !== currentVersion) {
+        // 版本变化（升级或降级），清理日志
+        if (existsSync(logConfig.logDir)) {
+          rmSync(logConfig.logDir, { recursive: true, force: true })
+        }
+        // 更新版本文件
+        writeFileSync(versionFile, currentVersion, 'utf-8')
+      }
+    } else {
+      // 首次安装，清理日志并创建版本文件
+      if (existsSync(logConfig.logDir)) {
+        rmSync(logConfig.logDir, { recursive: true, force: true })
+      }
+      writeFileSync(versionFile, currentVersion, 'utf-8')
+    }
+  } catch (e) {
+    // 忽略错误
+  }
+}
+
 // 初始化日志系统
 export function initLogger(): void {
   // 设置日志目录
   logConfig.logDir = join(app.getPath('userData'), 'logs')
+  
+  // 检测版本变化，新安装或版本升级时清理日志
+  checkVersionAndClearLogs()
   
   // 创建日志目录
   if (!existsSync(logConfig.logDir)) {
@@ -133,24 +168,21 @@ function rotateLogs(): void {
 
 // 清理旧日志文件
 function cleanOldLogs(): void {
-  const fs = require('fs')
-  const path = require('path')
-  
   try {
-    const files = fs.readdirSync(logConfig.logDir)
+    const files = readdirSync(logConfig.logDir)
       .filter((f: string) => f.startsWith('app-') && f.endsWith('.log'))
       .map((f: string) => ({
         name: f,
-        path: path.join(logConfig.logDir, f),
-        time: fs.statSync(path.join(logConfig.logDir, f)).mtime.getTime()
+        path: join(logConfig.logDir, f),
+        time: statSync(join(logConfig.logDir, f)).mtime.getTime()
       }))
-      .sort((a: any, b: any) => b.time - a.time)
+      .sort((a, b) => b.time - a.time)
     
     // 保留最新的 N 个文件
     if (files.length > logConfig.maxFiles) {
-      files.slice(logConfig.maxFiles).forEach((f: any) => {
+      files.slice(logConfig.maxFiles).forEach((f) => {
         try {
-          fs.unlinkSync(f.path)
+          unlinkSync(f.path)
         } catch (e) {
           // 忽略删除错误
         }
@@ -169,18 +201,15 @@ export function getLogDir(): string {
 // 获取日志内容
 export function getLogContent(maxLines: number = 500): string {
   try {
-    const fs = require('fs')
-    const path = require('path')
-    
     // 获取所有日志文件，按时间排序（最新的在前）
-    const files = fs.readdirSync(logConfig.logDir)
+    const files = readdirSync(logConfig.logDir)
       .filter((f: string) => f.startsWith('app-') && f.endsWith('.log'))
       .map((f: string) => ({
         name: f,
-        path: path.join(logConfig.logDir, f),
-        time: fs.statSync(path.join(logConfig.logDir, f)).mtime.getTime()
+        path: join(logConfig.logDir, f),
+        time: statSync(join(logConfig.logDir, f)).mtime.getTime()
       }))
-      .sort((a: any, b: any) => b.time - a.time)
+      .sort((a, b) => b.time - a.time)
     
     if (files.length === 0) {
       return 'No logs available'
@@ -195,20 +224,20 @@ export function getLogContent(maxLines: number = 500): string {
     
     // 如果日志文件数量超过1个，显示文件列表
     if (files.length > 1) {
-      result += `日志文件列表 (共 ${files.length} 个):\n`
-      files.slice(0, 5).forEach((f: any, i: number) => {
-        const size = (fs.statSync(f.path).size / 1024).toFixed(2)
+      result += `Log files (${files.length} total):\n`
+      files.slice(0, 5).forEach((f, i) => {
+        const size = (statSync(f.path).size / 1024).toFixed(2)
         result += `  ${i + 1}. ${f.name} (${size} KB)\n`
       })
       if (files.length > 5) {
-        result += `  ... 还有 ${files.length - 5} 个文件\n`
+        result += `  ... and ${files.length - 5} more files\n`
       }
       result += '\n' + '='.repeat(50) + '\n\n'
     }
     
     // 显示日志内容
     if (lines.length > maxLines) {
-      result += `... (日志过长，显示最后 ${maxLines} 行)\n\n` + lines.slice(-maxLines).join('\n')
+      result += `... (log too long, showing last ${maxLines} lines)\n\n` + lines.slice(-maxLines).join('\n')
     } else {
       result += content
     }
@@ -222,12 +251,11 @@ export function getLogContent(maxLines: number = 500): string {
 // 清空日志
 export function clearLogs(): { success: boolean; message: string } {
   try {
-    const fs = require('fs')
-    const files = fs.readdirSync(logConfig.logDir)
-      .filter((f: string) => f.endsWith('.log'))
-    
-    for (const file of files) {
-      fs.unlinkSync(join(logConfig.logDir, file))
+    if (existsSync(logConfig.logDir)) {
+      // 删除整个 logs 目录
+      rmSync(logConfig.logDir, { recursive: true, force: true })
+      // 重新创建目录
+      mkdirSync(logConfig.logDir, { recursive: true })
     }
     
     log('INFO', 'Logs cleared')

@@ -123,7 +123,7 @@ export function initDefaultTerminals(): { success: boolean; message: string; cou
         // 忽略重复
       }
     }
-    console.log(`terminalConfig: 初始化了 ${count} 个终端`)
+    console.log(`terminalConfig: initialized ${count} terminals`)
     return { success: true, message: `已添加 ${count} 个终端工具`, count }
   }
   return { success: true, message: '终端列表已存在', count: existing.length }

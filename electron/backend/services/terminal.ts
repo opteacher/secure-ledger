@@ -197,8 +197,7 @@ export async function launchSSHTerminal(
             cmdStr = `cmd /c start "" cmd /k "plink -ssh ${sshTarget} -P ${port} -pw "${escapedPassword}""`
         }
         
-        console.log('Windows: 使用 plink 进行密码登录, 终端:', terminal.id)
-        console.log('命令:', cmdStr)
+        // 不记录包含密码的命令
       } else {
         // 使用 OpenSSH ssh 命令
         const sshArgs = ['-p', String(port)]
@@ -230,7 +229,7 @@ export async function launchSSHTerminal(
             cmdStr = `cmd /c start "" cmd /k "ssh ${sshArgs.join(' ')}"`
         }
         
-        console.log('Windows: 使用 OpenSSH ssh 命令')
+        console.log('Windows: Using OpenSSH ssh command')
       }
     } else if (currentPlatform === 'linux') {
       // ========== Linux ==========
@@ -278,8 +277,6 @@ export async function launchSSHTerminal(
           default:
             cmdStr = `"${terminal.path}" -e '${sshpassCmd}'`
         }
-        
-        console.log('Linux: 使用 sshpass 进行密码登录')
       } else {
         switch (terminal.id) {
           case 'gnome-terminal':
@@ -310,7 +307,7 @@ export async function launchSSHTerminal(
             cmdStr = `"${terminal.path}" -e ssh ${sshArgs.join(' ')}`
         }
         
-        console.log('Linux: 使用 OpenSSH ssh 命令')
+        console.log('Linux: Using OpenSSH ssh command')
       }
     } else if (currentPlatform === 'darwin') {
       // ========== macOS ==========
@@ -332,22 +329,22 @@ export async function launchSSHTerminal(
           cmdStr = `open -a Terminal --args ssh ${sshArgs.join(' ')}`
       }
       
-      console.log('macOS: 使用 OpenSSH ssh 命令')
+      console.log('macOS: Using OpenSSH ssh command')
     } else {
       return { success: false, message: `不支持的平台: ${currentPlatform}` }
     }
     
-    console.log(`启动终端: ${cmdStr}`)
+    // 不记录包含密码的命令
     
     exec(cmdStr, (error: Error | null) => {
       if (error) {
-        console.error('启动进程失败:', error)
+        console.error('Failed to start process:', error)
       }
     })
     
     return { success: true, message: '终端已启动' }
   } catch (error: any) {
-    console.error('启动终端失败:', error)
+    console.error('Failed to start terminal:', error)
     return { success: false, message: `启动终端失败: ${error.message}` }
   }
 }

@@ -1,5 +1,6 @@
 import { ipcMain, dialog, app, shell } from 'electron'
 import { dirname } from 'path'
+import { readFileSync } from 'fs'
 
 // 服务导入 - 静态导入避免动态加载问题
 import * as accountService from '../services/account'
@@ -19,6 +20,7 @@ import * as appLockService from '../services/appLock'
 import * as browserInstanceService from '../services/browserInstance'
 import * as keyRotationService from '../services/keyRotation'
 import * as secureKeyStorageService from '../crypto/secureKeyStorage'
+import * as endpointShareService from '../services/endpointShare'
 import * as database from '../database/index'
 
 interface IPCResponse<T = any> {
@@ -47,6 +49,10 @@ export function registerAllIPCHandlers(): void {
   registerHandler('endpoint:delete', handleEndpointDelete)
   registerHandler('endpoint:export', handleEndpointExport)
   registerHandler('endpoint:import', handleEndpointImport)
+  registerHandler('endpoint:share', handleEndpointShare)
+  registerHandler('endpoint:importToken', handleEndpointImportToken)
+  registerHandler('endpoint:checkTokenPermission', handleEndpointCheckTokenPermission)
+  registerHandler('endpoint:getTokenStatus', handleEndpointGetTokenStatus)
   
   // 步骤页相关
   registerHandler('page:list', handlePageList)
@@ -91,6 +97,10 @@ export function registerAllIPCHandlers(): void {
   registerHandler('app:getDatabasePath', handleAppGetDatabasePath)
   registerHandler('app:openDatabaseFolder', handleAppOpenDatabaseFolder)
   registerHandler('app:selectExecutable', handleAppSelectExecutable)
+  
+  // 文件操作
+  registerHandler('dialog:openFile', handleDialogOpenFile)
+  registerHandler('file:read', handleFileRead)
   
   // 日志管理
   registerHandler('app:getLogPath', handleAppGetLogPath)
@@ -180,7 +190,7 @@ function registerHandler<T>(
       const result = await handler(...args)
       return { success: true, data: result } as IPCResponse<T>
     } catch (error: any) {
-      console.error(`IPC 错误 [${channel}]:`, error)
+      console.error(`IPC error [${channel}]:`, error)
       return { success: false, error: error.message } as IPCResponse
     }
   })
@@ -234,6 +244,36 @@ function handleEndpointExport(ids: number[]) {
 
 function handleEndpointImport(data: any[]) {
   return endpointService.importEndpoints(data)
+}
+
+function handleEndpointShare(data: { id: number; restrictions: any }) {
+  const endpoint = endpointService.getEndpoint(data.id)
+  if (!endpoint) {
+    throw new Error('登录端不存在')
+  }
+  // getEndpoint returns EndpointFull with pages and slots
+  return endpointShareService.generateShareToken(endpoint, data.restrictions)
+}
+
+async function handleEndpointImportToken(token: string) {
+  return await endpointShareService.importEndpointFromToken(token)
+}
+
+async function handleEndpointCheckTokenPermission(data: { id: number }) {
+  const endpoint = endpointService.getEndpoint(data.id)
+  if (!endpoint) {
+    return { allowed: false, reason: '登录端不存在' }
+  }
+  return await endpointShareService.checkTokenPermission(endpoint)
+}
+
+async function handleEndpointGetTokenStatus(data: { id: number }) {
+  const endpoints = endpointService.listEndpoints()
+  const endpoint = endpoints.find(e => e.id === data.id)
+  if (!endpoint) {
+    return { isToken: false, isValid: false }
+  }
+  return await endpointShareService.getTokenStatus(endpoint)
 }
 
 // ============ 步骤页处理器 ============
@@ -662,4 +702,22 @@ function handleKeyRotationStop() {
 // ============ 安全密钥存储处理器 ============
 async function handleSecureKeyStorageIsEncryptionAvailable() {
   return { available: await secureKeyStorageService.isEncryptionAvailable() }
+}
+
+// ============ 文件操作处理器 ============
+async function handleDialogOpenFile(data?: { 
+  title?: string
+  filters?: Array<{ name: string; extensions: string[] }>
+}) {
+  const result = await dialog.showOpenDialog({
+    title: data?.title || '选择文件',
+    filters: data?.filters || [{ name: 'All Files', extensions: ['*'] }],
+    properties: ['openFile']
+  })
+  return result
+}
+
+async function handleFileRead(filePath: string) {
+  const content = readFileSync(filePath, 'utf-8')
+  return content
 }

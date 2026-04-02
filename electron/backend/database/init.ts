@@ -14,6 +14,7 @@ export interface Endpoint {
   name: string
   icon: string
   login_type: 'web' | 'ssh'
+  share_token: string  // JWT token for shared endpoints (empty = normal)
   created_at: string
   updated_at: string
 }
@@ -60,6 +61,7 @@ export function initTables(): void {
       name TEXT NOT NULL,
       icon TEXT DEFAULT '',
       login_type TEXT CHECK(login_type IN ('web', 'ssh')) DEFAULT 'web',
+      share_token TEXT DEFAULT '',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
@@ -128,7 +130,7 @@ export function initTables(): void {
       id INTEGER PRIMARY KEY CHECK (id = 1),  -- 只允许一行记录
       is_enabled INTEGER DEFAULT 0,
       is_locked INTEGER DEFAULT 0,             -- 应用是否处于锁定状态
-      lock_delay_minutes INTEGER DEFAULT 5,   -- 延时锁定时长（分钟）
+      lock_delay_minutes REAL DEFAULT 5,      -- 延时锁定时长（分钟，支持小数如0.5）
       lock_password_hash TEXT,               -- 锁定密码哈希
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -174,6 +176,54 @@ export function initTables(): void {
     // 列可能已存在，忽略错误
     console.log('is_locked column already exists or table not found')
   }
+  
+  // 迁移：lock_delay_minutes 从 INTEGER 改为 REAL（支持小数）
+  // SQLite 不支持 ALTER COLUMN，需要重建表
+  try {
+    // 检查列类型是否需要迁移
+    const tableInfo = queryOne<{ type: string }>(
+      `SELECT type FROM pragma_table_info('app_lock_settings') WHERE name = 'lock_delay_minutes'`
+    )
+    
+    if (tableInfo && tableInfo.type === 'INTEGER') {
+      console.log('Migrating lock_delay_minutes from INTEGER to REAL...')
+      
+      // 创建新表
+      run(`
+        CREATE TABLE IF NOT EXISTS app_lock_settings_new (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          is_enabled INTEGER DEFAULT 0,
+          is_locked INTEGER DEFAULT 0,
+          lock_delay_minutes REAL DEFAULT 5,
+          lock_password_hash TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+      `)
+      
+      // 复制数据
+      run(`
+        INSERT INTO app_lock_settings_new (id, is_enabled, is_locked, lock_delay_minutes, lock_password_hash, created_at, updated_at)
+        SELECT id, is_enabled, is_locked, lock_delay_minutes, lock_password_hash, created_at, updated_at
+        FROM app_lock_settings
+      `)
+      
+      // 删除旧表
+      run(`DROP TABLE app_lock_settings`)
+      
+      // 重命名新表
+      run(`ALTER TABLE app_lock_settings_new RENAME TO app_lock_settings`)
+      
+      console.log('Migration completed: lock_delay_minutes is now REAL')
+    }
+  } catch (e) {
+    console.log('lock_delay_minutes migration skipped:', e)
+  }
+  
+  // 迁移：endpoint 表添加分享 token 字段
+  try {
+    run(`ALTER TABLE endpoint ADD COLUMN share_token TEXT DEFAULT ''`)
+  } catch {}
 
   console.log('Database tables initialized')
 }

@@ -28,6 +28,7 @@ export interface Endpoint {
   name: string
   icon: string
   login_type: 'web' | 'ssh'
+  share_token: string  // JWT token for shared endpoints (empty = normal)
   created_at: string
   updated_at: string
 }
@@ -60,6 +61,22 @@ export interface EndpointFull extends Endpoint {
   pages: Page[]
 }
 
+// Share restrictions type
+export interface ShareRestrictions {
+  type: 'unlimited' | 'count' | 'duration' | 'datetime'
+  maxUsage?: number
+  durationHours?: number
+  expiresAt?: string  // ISO datetime string
+}
+
+// Token status for display
+export interface TokenStatus {
+  isToken: boolean
+  isValid: boolean
+  usageInfo?: string
+  expiryInfo?: string
+}
+
 export const endpointApi = {
   list: () => invoke<Endpoint[]>('endpoint:list'),
   
@@ -75,7 +92,20 @@ export const endpointApi = {
   export: (ids: number[]) => invoke<EndpointFull[]>('endpoint:export', ids),
   
   import: (data: EndpointFull[]) => 
-    invoke<{ success: number; failed: number }>('endpoint:import', data)
+    invoke<{ success: number; failed: number }>('endpoint:import', data),
+  
+  // Share/Import Token
+  share: (id: number, restrictions: ShareRestrictions) => 
+    invoke<string>('endpoint:share', { id, restrictions }),
+  
+  importToken: (token: string) => 
+    invoke<Endpoint>('endpoint:importToken', token),
+  
+  checkTokenPermission: (id: number) => 
+    invoke<{ allowed: boolean; reason?: string }>('endpoint:checkTokenPermission', { id }),
+  
+  getTokenStatus: (id: number) => 
+    invoke<TokenStatus>('endpoint:getTokenStatus', { id })
 }
 
 // ============ 步骤页 API ============

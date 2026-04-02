@@ -2,7 +2,7 @@
  * Puppeteer 版本管理服务
  * 负责动态加载和切换不同版本的 Puppeteer
  */
-import { getBrowserVersion, decidePuppeteerVersion, type BrowserVersionInfo } from './chromeVersion'
+import { getBrowserVersion, decidePuppeteerVersion, type BrowserVersionInfo, CHROME_VERSION_THRESHOLD } from './chromeVersion'
 
 // Puppeteer 版本类型
 export type PuppeteerVersion = 'high' | 'low'
@@ -110,83 +110,110 @@ export async function connectToExistingBrowser(
     console.log(`[PuppeteerManager] Failed to parse WebSocket URL, using as-is`)
   }
   
-  // 尝试高版本 Puppeteer
-  try {
-    const puppeteer = await getPuppeteer('high')
-    console.log(`[PuppeteerManager] Trying high version Puppeteer...`)
-    
-    // 方式1: 使用 browserWSEndpoint
+  // 尝试获取浏览器版本信息（通过 HTTP endpoint）
+  let detectedChromeVersion: number | null = null
+  if (browserUrl) {
     try {
-      const browser = await puppeteer.connect({
-        browserWSEndpoint: wsEndpoint,
-        defaultViewport: null,
-        ignoreHTTPSErrors: true,
-        ...options
-      })
+      const versionUrl = `${browserUrl}/json/version`
+      console.log(`[PuppeteerManager] Fetching browser version from: ${versionUrl}`)
+      const response = await fetch(versionUrl)
+      const versionInfo = await response.json()
+      console.log(`[PuppeteerManager] Browser version info:`, versionInfo)
       
-      console.log(`[PuppeteerManager] Connected successfully with browserWSEndpoint`)
-      return {
-        browser,
-        puppeteerVersion: 'high',
-        isConnected: true
+      // 解析版本号 "Browser": "Chrome/120.0.6099.109"
+      const browserMatch = versionInfo.Browser?.match(/Chrome\/(\d+)/)
+      if (browserMatch) {
+        detectedChromeVersion = parseInt(browserMatch[1], 10)
+        console.log(`[PuppeteerManager] Detected Chrome version: ${detectedChromeVersion}`)
       }
-    } catch (wsError: any) {
-      console.log(`[PuppeteerManager] browserWSEndpoint failed: ${wsError.message}`)
+    } catch (e: any) {
+      console.log(`[PuppeteerManager] Could not fetch browser version: ${e.message}`)
+    }
+  }
+  
+  // 根据检测到的版本决定使用哪个 Puppeteer
+  let preferredVersion: PuppeteerVersion = 'high'
+  if (detectedChromeVersion !== null) {
+    if (detectedChromeVersion < CHROME_VERSION_THRESHOLD) {
+      preferredVersion = 'low'
+      console.log(`[PuppeteerManager] Chrome ${detectedChromeVersion} < ${CHROME_VERSION_THRESHOLD}, preferring low version Puppeteer`)
+    } else {
+      preferredVersion = 'high'
+      console.log(`[PuppeteerManager] Chrome ${detectedChromeVersion} >= ${CHROME_VERSION_THRESHOLD}, preferring high version Puppeteer`)
+    }
+  }
+  
+  // 按优先级尝试连接
+  const versionsToTry: PuppeteerVersion[] = 
+    preferredVersion === 'low' 
+      ? ['low', 'high']  // 旧版 Chrome 先试低版本
+      : ['high', 'low']  // 新版 Chrome 先试高版本
+  
+  for (const version of versionsToTry) {
+    try {
+      const puppeteer = await getPuppeteer(version)
+      console.log(`[PuppeteerManager] Trying ${version} version Puppeteer...`)
       
-      // 方式2: 尝试使用 browserURL
-      if (browserUrl) {
-        console.log(`[PuppeteerManager] Trying browserURL: ${browserUrl}`)
+      // 方式1: 使用 browserWSEndpoint
+      try {
         const browser = await puppeteer.connect({
-          browserURL: browserUrl,
+          browserWSEndpoint: wsEndpoint,
           defaultViewport: null,
           ignoreHTTPSErrors: true,
           ...options
         })
         
-        console.log(`[PuppeteerManager] Connected successfully with browserURL`)
+        console.log(`[PuppeteerManager] Connected successfully with ${version} version Puppeteer (browserWSEndpoint)`)
         return {
           browser,
-          puppeteerVersion: 'high',
+          puppeteerVersion: version,
           isConnected: true
         }
+      } catch (wsError: any) {
+        console.log(`[PuppeteerManager] browserWSEndpoint failed: ${wsError.message}`)
+        
+        // 方式2: 尝试使用 browserURL
+        if (browserUrl) {
+          console.log(`[PuppeteerManager] Trying browserURL: ${browserUrl}`)
+          try {
+            const browser = await puppeteer.connect({
+              browserURL: browserUrl,
+              defaultViewport: null,
+              ignoreHTTPSErrors: true,
+              ...options
+            })
+            
+            console.log(`[PuppeteerManager] Connected successfully with ${version} version Puppeteer (browserURL)`)
+            return {
+              browser,
+              puppeteerVersion: version,
+              isConnected: true
+            }
+          } catch (urlError: any) {
+            console.log(`[PuppeteerManager] browserURL also failed: ${urlError.message}`)
+          }
+        }
+        
+        throw wsError
       }
+    } catch (error: any) {
+      console.log(`[PuppeteerManager] ${version} version connect failed: ${error.message}`)
       
-      throw wsError
-    }
-  } catch (highVersionError: any) {
-    console.log(`[PuppeteerManager] High version connect failed: ${highVersionError.message}`)
-    
-    // 尝试低版本 Puppeteer
-    try {
-      const puppeteer = await getPuppeteer('low')
-      console.log(`[PuppeteerManager] Trying low version Puppeteer...`)
-      
-      const browser = await puppeteer.connect({
-        browserWSEndpoint: wsEndpoint,
-        defaultViewport: null,
-        ignoreHTTPSErrors: true,
-        ...options
-      })
-      
-      console.log(`[PuppeteerManager] Connected successfully with low version Puppeteer`)
-      return {
-        browser,
-        puppeteerVersion: 'low',
-        isConnected: true
+      // 如果是最后一个版本，抛出错误
+      if (version === versionsToTry[versionsToTry.length - 1]) {
+        // 提供更详细的错误信息
+        const isNotAllowed = error.message.includes('Not allowed') || 
+                            error.message.includes('Protocol error')
+        const errorMsg = isNotAllowed
+          ? `无法连接浏览器：${error.message}\n\n请确保浏览器启动时包含参数：--remote-allow-origins=*`
+          : `连接浏览器失败: ${error.message}`
+        
+        throw new Error(errorMsg)
       }
-    } catch (lowVersionError: any) {
-      console.error(`[PuppeteerManager] Low version also failed: ${lowVersionError.message}`)
-      
-      // 提供更详细的错误信息
-      const isNotAllowed = highVersionError.message.includes('Not allowed') || 
-                          highVersionError.message.includes('Protocol error')
-      const errorMsg = isNotAllowed
-        ? `无法连接浏览器：${highVersionError.message}\n\n请确保浏览器启动时包含参数：--remote-allow-origins=*`
-        : `连接浏览器失败: ${highVersionError.message}`
-      
-      throw new Error(errorMsg)
     }
   }
+  
+  throw new Error('Failed to connect to browser')
 }
 
 /**

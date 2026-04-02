@@ -647,7 +647,6 @@ export function startTtydWithSSH(config: SSHConfig): { success: boolean; message
         ]
         
         ttydArgs.push(...plinkArgs)
-        console.log('Windows: Using plink for password login')
       } else {
         // 使用 OpenSSH ssh 命令（密钥文件或无密码）
         const sshArgs: string[] = ['ssh']
@@ -699,7 +698,8 @@ export function startTtydWithSSH(config: SSHConfig): { success: boolean; message
       console.log('Linux/macOS: Using sshpass + ssh')
     }
     
-    console.log('Starting ttyd command:', ttydPath, ttydArgs.join(' '))
+    // Do not log command with password
+    console.log('Starting ttyd SSH session')
     
     const ttydProcess = spawn(ttydPath, ttydArgs, {
       detached: true,

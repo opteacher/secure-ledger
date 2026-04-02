@@ -111,7 +111,7 @@ try {
   
   console.log('\n========================================')
   console.log('Win7 构建完成!')
-  console.log('输出: release/密钥终端-1.0.3-win7-setup.exe')
+  console.log('输出: release/密钥终端-1.0.4-win7-setup.exe')
   console.log('========================================')
   
 } catch (error) {
