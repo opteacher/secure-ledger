@@ -1,6 +1,6 @@
 {
   "appId": "com.secure-ledger.app",
-  "productName": "密钥终端",
+  "productName": "账号管理器",
   "copyright": "Copyright © 2026 SecureLedger Team",
   "directories": {
     "output": "release"
@@ -24,7 +24,7 @@
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "密钥终端"
+    "shortcutName": "账号管理器"
   },
   "linux": {
     "target": [
@@ -41,7 +41,7 @@
     "maintainer": "SecureLedger Team",
     "icon": "public/logo.svg",
     "desktop": {
-      "Name": "密钥终端",
+      "Name": "账号管理器",
       "Comment": "Credential management and automation platform",
       "Categories": "Utility;Security"
     }

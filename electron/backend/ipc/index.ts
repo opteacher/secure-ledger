@@ -21,6 +21,8 @@ import * as browserInstanceService from '../services/browserInstance'
 import * as keyRotationService from '../services/keyRotation'
 import * as secureKeyStorageService from '../crypto/secureKeyStorage'
 import * as endpointShareService from '../services/endpointShare'
+import * as tokenReceiverService from '../services/tokenReceiver'
+import * as networkUtils from '../utils/network'
 import * as database from '../database/index'
 
 interface IPCResponse<T = any> {
@@ -74,6 +76,7 @@ export function registerAllIPCHandlers(): void {
   
   // 登录执行
   registerHandler('login:execute', handleLoginExecute)
+  registerHandler('login:cancel', handleLoginCancel)
   
   // SSH 文件上传
   registerHandler('ssh:upload', handleSSHUpload)
@@ -176,6 +179,14 @@ export function registerAllIPCHandlers(): void {
   
   // 安全密钥存储
   registerHandler('secureKeyStorage:isEncryptionAvailable', handleSecureKeyStorageIsEncryptionAvailable)
+  
+  // Token 接收服务
+  registerHandler('tokenReceiver:start', handleTokenReceiverStart)
+  registerHandler('tokenReceiver:stop', handleTokenReceiverStop)
+  registerHandler('tokenReceiver:status', handleTokenReceiverStatus)
+  
+  // 网络工具
+  registerHandler('network:getLocalIPs', handleNetworkGetLocalIPs)
   
   console.log('All IPC handlers registered')
 }
@@ -330,6 +341,10 @@ function handleChromeDetect() {
 // ============ 登录执行处理器 ============
 function handleLoginExecute(data: { endpointId: number; chromePath: string; wsEndpoint?: string }) {
   return automationService.executeLogin(data.endpointId, data.chromePath, undefined, data.wsEndpoint)
+}
+
+function handleLoginCancel() {
+  return automationService.cancelExecution()
 }
 
 // ============ SSH 处理器 ============
@@ -702,6 +717,24 @@ function handleKeyRotationStop() {
 // ============ 安全密钥存储处理器 ============
 async function handleSecureKeyStorageIsEncryptionAvailable() {
   return { available: await secureKeyStorageService.isEncryptionAvailable() }
+}
+
+// ============ Token 接收服务处理器 ============
+async function handleTokenReceiverStart() {
+  return tokenReceiverService.startTokenReceiver()
+}
+
+function handleTokenReceiverStop() {
+  return tokenReceiverService.stopTokenReceiver()
+}
+
+function handleTokenReceiverStatus() {
+  return tokenReceiverService.getTokenReceiverStatus()
+}
+
+// ============ 网络工具处理器 ============
+function handleNetworkGetLocalIPs() {
+  return { ips: networkUtils.getLocalIPs() }
 }
 
 // ============ 文件操作处理器 ============

@@ -1,5 +1,5 @@
 appId: "com.secure-ledger.app"
-productName: "密钥终端"
+productName: "账号管理器"
 copyright: "Copyright © 2026 SecureLedger Team"
 electronVersion: "22.3.27"
 
@@ -27,7 +27,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: "密钥终端"
+  shortcutName: "账号管理器"
   artifactName: "${productName}-${version}-win7-setup.${ext}"
 
 extraResources:

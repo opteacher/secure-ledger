@@ -13,7 +13,7 @@
               </svg>
             </div>
             <div>
-              <h1 class="text-lg font-bold text-fg-primary font-display">密钥终端</h1>
+              <h1 class="text-lg font-bold text-fg-primary font-display">账号管理器</h1>
               <p class="text-xs text-fg-muted">登录端管理</p>
             </div>
           </a>
@@ -136,59 +136,77 @@
                 </div>
               </div>
 
-              <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  @click.stop="executeLogin(endpoint)"
-                  class="btn-primary text-sm"
-                  :disabled="executingId === endpoint.id"
-                >
-                  <svg v-if="executingId === endpoint.id" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  {{ executingId === endpoint.id ? '执行中' : '执行登录' }}
-                </button>
-                <!-- 分享按钮 - 仅对非Token端点显示 -->
-                <button
-                  v-if="!isTokenEndpoint(endpoint)"
-                  @click.stop="showShareDialog(endpoint)"
-                  class="btn-secondary text-sm"
-                  title="分享"
-                >
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                  </svg>
-                  分享
-                </button>
-                <!-- 上传按钮组 -->
-                <div v-if="endpoint.login_type === 'ssh'" class="flex">
-                  <button
-                    @click.stop="startUpload(endpoint, false)"
-                    class="btn-secondary text-sm rounded-r-none border-r-0"
-                    title="上传文件"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              <!-- 右侧操作区 -->
+              <div class="flex items-center gap-2">
+                <!-- 登录执行中：始终显示（不受 hover 控制） -->
+                <template v-if="executingId === endpoint.id">
+                  <span class="text-sm text-primary-600 animate-pulse flex items-center">
+                    <svg class="w-4 h-4 animate-spin mr-1" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    上传文件
-                  </button>
+                    登录中……
+                  </span>
                   <button
-                    @click.stop="startUpload(endpoint, true)"
-                    class="btn-secondary text-sm rounded-l-none"
-                    title="上传文件夹"
+                    @click.stop="cancelExecution()"
+                    class="btn-secondary text-sm bg-red-500 hover:bg-red-600 text-white border-red-500 hover:border-red-600"
                   >
-                    夹
+                    停止
                   </button>
-                </div>
-                <button
-                  @click.stop="confirmDelete(endpoint.id)"
-                  class="btn-icon text-error-500 hover:text-error-600 hover:bg-error-50"
-                  title="删除"
-                >
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                </template>
+                
+                <!-- 未执行时：操作按钮需要 hover 显示 -->
+                <template v-else>
+                  <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      @click.stop="executeLogin(endpoint)"
+                      class="btn-primary text-sm"
+                    >
+                      执行登录
+                    </button>
+                <!-- 分享按钮 - 仅对非Token端点显示 -->
+                    <button
+                      v-if="!isTokenEndpoint(endpoint)"
+                      @click.stop="showShareDialog(endpoint)"
+                      class="btn-secondary text-sm"
+                      title="分享"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                      </svg>
+                      分享
+                    </button>
+                    <!-- 上传按钮组 -->
+                    <div v-if="endpoint.login_type === 'ssh'" class="flex">
+                      <button
+                        @click.stop="startUpload(endpoint, false)"
+                        class="btn-secondary text-sm rounded-r-none border-r-0"
+                        title="上传文件"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        上传文件
+                      </button>
+                      <button
+                        @click.stop="startUpload(endpoint, true)"
+                        class="btn-secondary text-sm rounded-l-none"
+                        title="上传文件夹"
+                      >
+                        夹
+                      </button>
+                    </div>
+                    <button
+                      @click.stop="confirmDelete(endpoint.id)"
+                      class="btn-icon text-error-500 hover:text-error-600 hover:bg-error-50"
+                      title="删除"
+                    >
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </template>
               </div>
             </div>
           </div>
@@ -410,35 +428,35 @@
                   </div>
                 </div>
                 
-                <!-- 加密迁移 -->
-                <!-- 密钥轮换 -->
-                <div class="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
-                  <div>
-                    <p class="text-sm font-medium text-fg-primary">密钥轮换</p>
-                    <p class="text-xs text-fg-muted">重新生成加密密钥并刷新数据</p>
-                    <p v-if="encryptionAvailable === false" class="text-xs mt-1 text-red-600">
-                      ⚠️ 系统加密服务不可用
-                      <span v-if="platformInfo?.isLinux">（请解锁密钥环）</span>
-                    </p>
-                    <p v-else-if="rotationStatus" class="text-xs mt-1 text-fg-muted">
-                      {{ rotationStatus.lastRotationTime ? `上次: ${formatDate(rotationStatus.lastRotationTime)}` : '尚未轮换' }}
-                      <span v-if="rotationStatus.isScheduled && rotationStatus.nextRotationTime" class="text-primary-600 ml-1">
-                        | 下次: {{ formatDate(rotationStatus.nextRotationTime) }}
-                      </span>
-                    </p>
+<!-- 加密迁移 -->
+                 <!-- 密钥轮换 -->
+                 <div class="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
+                   <div>
+                     <p class="text-sm font-medium text-fg-primary">密钥轮换</p>
+                     <p class="text-xs text-fg-muted">重新生成加密密钥并刷新数据</p>
+                     <p v-if="encryptionAvailable === false" class="text-xs mt-1 text-red-600">
+                       ⚠️ 系统加密服务不可用
+                       <span v-if="platformInfo?.isLinux">（请解锁密钥环）</span>
+                     </p>
+                     <p v-else-if="rotationStatus" class="text-xs mt-1 text-fg-muted">
+                       {{ rotationStatus.lastRotationTime ? `上次: ${formatDate(rotationStatus.lastRotationTime)}` : '尚未轮换' }}
+                       <span v-if="rotationStatus.isScheduled && rotationStatus.nextRotationTime" class="text-primary-600 ml-1">
+                         | 下次: {{ formatDate(rotationStatus.nextRotationTime) }}
+                       </span>
+                     </p>
+                   </div>
+                   <button 
+                     @click="performKeyRotation" 
+                     :disabled="rotationLoading || rotationStatus?.isRotating || encryptionAvailable === false"
+                     class="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+{{ rotationLoading || rotationStatus?.isRotating ? '轮换中...' : '轮换' }}
+                    </button>
                   </div>
-                  <button 
-                    @click="performKeyRotation" 
-                    :disabled="rotationLoading || rotationStatus?.isRotating || encryptionAvailable === false"
-                    class="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {{ rotationLoading || rotationStatus?.isRotating ? '轮换中...' : '轮换' }}
-                  </button>
                 </div>
               </div>
-            </div>
 
-            <!-- App Config -->
+             <!-- App Config -->
             <div class="mb-6">
               <h4 class="text-sm font-medium text-fg-secondary mb-3 flex items-center gap-2">
                 <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -777,7 +795,7 @@
                   </svg>
                 </div>
                 <div>
-                  <p class="text-sm font-semibold text-fg-primary">密钥终端 (Secure Ledger)</p>
+                  <p class="text-sm font-semibold text-fg-primary">账号管理器 (Secure Ledger)</p>
                   <p class="text-xs text-fg-muted">版本 1.0.4</p>
                 </div>
               </div>
@@ -928,6 +946,70 @@
       @close="showImportDialog = false"
       @imported="handleEndpointImported"
     />
+    
+    <!-- Token 接收确认对话框 -->
+    <div v-if="showTokenConfirmDialog" class="modal-overlay" @click.self="rejectTokenConfirm">
+      <div class="modal-content" style="width: 520px;">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-5">
+          <h3 class="text-lg font-semibold text-fg-primary">接收Token分享</h3>
+          <button @click="rejectTokenConfirm" class="btn-icon">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        <!-- Endpoint Info -->
+        <div class="mb-4 p-4 bg-neutral-50 rounded-lg">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-100 to-primary-50 flex items-center justify-center text-primary-600 font-medium text-lg">
+              {{ tokenConfirmData?.endpointIcon || tokenConfirmData?.endpointName?.charAt(0)?.toUpperCase() }}
+            </div>
+            <div class="flex-1">
+              <div class="font-medium text-fg-primary">{{ tokenConfirmData?.endpointName }}</div>
+              <div class="text-sm text-fg-muted">
+                {{ tokenConfirmData?.loginType === 'web' ? '网页登录' : 'SSH登录' }}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Details -->
+        <div class="mb-5 space-y-2 text-sm">
+          <div class="flex justify-between">
+            <span class="text-fg-muted">来源IP</span>
+            <span class="text-fg-primary">{{ tokenConfirmData?.fromIP || '未知' }}</span>
+          </div>
+          
+          <div v-if="tokenConfirmData?.restrictions" class="flex justify-between">
+            <span class="text-fg-muted">使用限制</span>
+            <span class="text-fg-primary">
+              <template v-if="tokenConfirmData.restrictions.type === 'unlimited'">无限制</template>
+              <template v-else-if="tokenConfirmData.restrictions.type === 'count'">{{ tokenConfirmData.restrictions.maxUsage }} 次</template>
+              <template v-else-if="tokenConfirmData.restrictions.type === 'duration'">{{ tokenConfirmData.restrictions.durationHours }} 小时</template>
+              <template v-else-if="tokenConfirmData.restrictions.type === 'datetime'">{{ new Date(tokenConfirmData.restrictions.expiresAt * 1000).toLocaleString() }}</template>
+            </span>
+          </div>
+          
+          <div v-if="tokenConfirmData?.targetIp" class="flex justify-between">
+            <span class="text-fg-muted">目标IP</span>
+            <span class="text-fg-primary">{{ tokenConfirmData.targetIp }}</span>
+          </div>
+          
+          <div v-if="tokenConfirmData?.importDeadline" class="flex justify-between">
+            <span class="text-fg-muted">导入期限</span>
+            <span class="text-fg-primary">{{ tokenConfirmData.importDeadline }} 小时</span>
+          </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="flex gap-3 justify-end">
+          <button @click="rejectTokenConfirm" class="btn-secondary">拒绝</button>
+          <button @click="acceptTokenConfirm" class="btn-primary">导入</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -950,6 +1032,19 @@ const endpoints = computed(() => endpointStore.endpoints)
 
 // Token endpoint 状态缓存
 const tokenStatusCache = ref<Map<number, TokenStatus>>(new Map())
+
+// Token 接收确认对话框状态
+const showTokenConfirmDialog = ref(false)
+const tokenConfirmData = ref<{
+  confirmId: string
+  endpointName: string
+  endpointIcon: string
+  loginType: string
+  restrictions: any
+  targetIp?: string
+  importDeadline?: number
+  fromIP?: string
+} | null>(null)
 
 // 搜索关键词
 const searchKeyword = ref('')
@@ -1092,7 +1187,45 @@ onMounted(async () => {
     startActivityMonitor()
     startLockTimer()
   }
+  
+  // 监听 Token 接收确认请求
+  window.ipc.on('token:confirm', (data: any) => {
+    console.log('[TokenConfirm] Received:', data)
+    tokenConfirmData.value = data
+    showTokenConfirmDialog.value = true
+  })
+  
+  // 监听 Token 导入成功
+  window.ipc.on('token:imported', (data: any) => {
+    console.log('[TokenImported] Success:', data)
+    messageSuccess(`登录端 "${data.endpoint?.name}" 已导入`)
+    endpointStore.loadEndpoints()
+    loadTokenStatuses()
+  })
 })
+
+// Token 确认对话框处理
+function acceptTokenConfirm() {
+  if (tokenConfirmData.value) {
+    window.ipc.send('token:confirm:response', {
+      confirmId: tokenConfirmData.value.confirmId,
+      accepted: true
+    })
+  }
+  showTokenConfirmDialog.value = false
+  tokenConfirmData.value = null
+}
+
+function rejectTokenConfirm() {
+  if (tokenConfirmData.value) {
+    window.ipc.send('token:confirm:response', {
+      confirmId: tokenConfirmData.value.confirmId,
+      accepted: false
+    })
+  }
+  showTokenConfirmDialog.value = false
+  tokenConfirmData.value = null
+}
 
 // 监听 endpoints 变化，加载 Token 状态
 watch(endpoints, (newEndpoints, oldEndpoints) => {
@@ -1890,6 +2023,22 @@ async function doExecuteLogin(endpointId: number, chromePath: string, wsEndpoint
     executingId.value = null
     pendingEndpointId.value = null
     pendingEndpoint.value = null
+  }
+}
+
+// 取消正在执行的登录
+async function cancelExecution() {
+  if (executingId.value) {
+    try {
+      await loginApi.cancel()
+      messageSuccess('已取消登录')
+    } catch (e: any) {
+      messageError('取消失败: ' + e.message)
+    } finally {
+      executingId.value = null
+      pendingEndpointId.value = null
+      pendingEndpoint.value = null
+    }
   }
 }
 

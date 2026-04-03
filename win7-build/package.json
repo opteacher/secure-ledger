@@ -1,7 +1,7 @@
 {
   "name": "secure-ledger",
   "version": "1.0.4",
-  "description": "密钥终端 - 凭证管理与自动化登录平台 (Windows 7 兼容版)",
+  "description": "账号管理器 - 凭证管理与自动化登录平台 (Windows 7 兼容版)",
   "main": "dist-electron/main.js",
   "homepage": "https://github.com/secure-ledger/secure-ledger",
   "scripts": {
@@ -23,6 +23,7 @@
   "license": "MIT",
   "dependencies": {
     "extract-zip": "^2.0.1",
+    "jose": "^5.2.0",
     "pinia": "^2.1.7",
     "puppeteer-core": "19.4.0",
     "sql.js": "^1.14.1",

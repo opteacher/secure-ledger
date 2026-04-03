@@ -44,7 +44,7 @@ function main() {
   // 获取数据库路径 (开发环境使用当前目录)
   const dbPath = process.env.DB_PATH || join(process.cwd(), 'secure-ledger.db')
 
-  console.log('📦 密钥终端 - 测试用户创建工具')
+  console.log('📦 账号管理器 - 测试用户创建工具')
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
   console.log(`数据库路径：${dbPath}`)
   console.log('')

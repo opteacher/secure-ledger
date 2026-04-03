@@ -96,7 +96,7 @@ async function createWindow() {
     minWidth: 1000,
     minHeight: 700,
     icon: join(RENDERER_DIST, 'public', 'logo.svg'),
-    title: '密钥终端 - Secure Ledger',
+    title: '账号管理器 - Secure Ledger',
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -239,6 +239,24 @@ async function backgroundInit() {
     console.error('ttyd check error:', error)
   }
   
+  // 启动 Token 接收服务
+  try {
+    sendSplashProgress('启动Token接收服务...', 95)
+    const { startTokenReceiver, registerTokenConfirmationHandler } = await import('./backend/services/tokenReceiver')
+    
+    // 注册 IPC 处理器（前端确认对话框）
+    registerTokenConfirmationHandler()
+    
+    const result = await startTokenReceiver()
+    if (result.success) {
+      console.log(`Token receiver started on port ${result.port}`)
+    } else {
+      console.warn('Token receiver start failed:', result.error)
+    }
+  } catch (error: any) {
+    console.warn('Token receiver start error:', error.message)
+  }
+  
   sendSplashProgress('启动完成', 100)
 }
 
@@ -247,6 +265,18 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
     win = null
+  }
+})
+
+// 应用退出前清理
+app.on('will-quit', async () => {
+  // 停止 Token 接收服务
+  try {
+    const { stopTokenReceiver } = await import('./backend/services/tokenReceiver')
+    stopTokenReceiver()
+    console.log('Token receiver stopped')
+  } catch (e) {
+    // Ignore
   }
 })
 

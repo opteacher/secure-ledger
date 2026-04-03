@@ -64,7 +64,7 @@
       </div>
       
       <!-- 版本信息 -->
-      <p class="text-center text-xs text-gray-600 mt-6">密钥终端 v1.0.4</p>
+      <p class="text-center text-xs text-gray-600 mt-6">账号管理器 v1.0.4</p>
     </div>
   </div>
 </template>

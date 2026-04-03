@@ -21,6 +21,7 @@ import { hybridDecrypt } from '../crypto/hybrid'
 import { symmetricEncrypt, symmetricDecrypt, generateSymmetricKey } from '../crypto/hybrid'
 import { run, queryOne } from '../database/index'
 import type { Endpoint, Page, Slot } from '../database/init'
+import { getLocalIPs, isIPInCIDR, normalizeToCIDR, isValidCIDR } from '../utils/network'
 
 // ============================================
 // Types
@@ -31,6 +32,8 @@ export interface ShareRestrictions {
   maxUsage?: number       // For type='count'
   durationHours?: number  // For type='duration'
   expiresAt?: string      // For type='datetime' - ISO string
+  targetIp?: string       // Target IP or CIDR for import restriction
+  importDeadline?: number // Hours from generation until import deadline
 }
 
 // Slot for token payload (encrypted with symmetric key)
@@ -85,6 +88,10 @@ export interface ShareTokenPayload {
   
   // Share endpoint's public key for signature verification
   publicKey: string      // PEM-encoded public key
+  
+  // Import restrictions
+  targetIp?: string      // Target IP or CIDR
+  importDeadline?: number // Hours from iat until import deadline
 }
 
 export interface TokenValidationResult {
@@ -94,6 +101,8 @@ export interface TokenValidationResult {
   shouldUpdate?: boolean
   isExpired?: boolean
   isExhausted?: boolean
+  ipMismatch?: boolean      // IP restriction mismatch
+  deadlineExpired?: boolean // Import deadline passed
 }
 
 // Full endpoint data for generating token
@@ -210,6 +219,14 @@ export async function generateShareToken(
     publicKey: publicKey,
   }
   
+  // Add import restrictions
+  if (restrictions.targetIp) {
+    payload.targetIp = restrictions.targetIp
+  }
+  if (restrictions.importDeadline) {
+    payload.importDeadline = restrictions.importDeadline
+  }
+  
   // Import private key
   const privateKeyObj = await jose.importPKCS8(privateKey, 'RS256')
   
@@ -322,6 +339,75 @@ function isValidPayloadStructure(payload: any): boolean {
 }
 
 // ============================================
+// Import Validation
+// ============================================
+
+/**
+ * Validate import conditions for a token
+ * 
+ * Validation order:
+ * 1. Standard JWT validation (signature, expiry, usage count)
+ * 2. Import deadline check (token must be imported within deadline)
+ * 3. Target IP check (local IP must match targetIp)
+ */
+export async function validateImportConditions(
+  token: string
+): Promise<TokenValidationResult> {
+  // 1. Standard JWT validation
+  const validation = await validateShareToken(token)
+  
+  if (!validation.valid) {
+    return validation
+  }
+  
+  if (!validation.payload) {
+    return { valid: false, error: 'Token解析失败' }
+  }
+  
+  const payload = validation.payload
+  
+  // 2. Check import deadline (Token survival time)
+  if (payload.importDeadline) {
+    const deadlineTimestamp = payload.iat + payload.importDeadline * 3600
+    if (Date.now() / 1000 > deadlineTimestamp) {
+      return {
+        valid: false,
+        error: 'Token导入期限已过，无法导入',
+        deadlineExpired: true
+      }
+    }
+  }
+  
+  // 3. Check target IP matches local machine
+  if (payload.targetIp) {
+    const localIPs = getLocalIPs()
+    
+    if (localIPs.length === 0) {
+      return {
+        valid: false,
+        error: '无法获取本机IP地址'
+      }
+    }
+    
+    // Normalize target IP to CIDR
+    const targetCIDR = normalizeToCIDR(payload.targetIp)
+    
+    // Check if any local IP matches
+    const matchFound = localIPs.some(localIP => isIPInCIDR(localIP, targetCIDR))
+    
+    if (!matchFound) {
+      return {
+        valid: false,
+        error: `Token目标IP (${payload.targetIp}) 与本机IP (${localIPs.join(', ')}) 不匹配`,
+        ipMismatch: true
+      }
+    }
+  }
+  
+  return { valid: true, payload }
+}
+
+// ============================================
 // Import from Token
 // ============================================
 
@@ -335,7 +421,8 @@ function isValidPayloadStructure(payload: any): boolean {
  * 4. 登录时实时从 Token 解码获取数据
  */
 export async function importEndpointFromToken(token: string): Promise<Endpoint> {
-  const validation = await validateShareToken(token)
+  // Use new validation that checks import deadline and target IP
+  const validation = await validateImportConditions(token)
   
   if (!validation.valid || !validation.payload) {
     throw new Error(validation.error || 'Token无效')

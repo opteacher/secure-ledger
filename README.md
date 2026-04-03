@@ -1,4 +1,4 @@
-# 密钥终端 - Secure Ledger
+# 账号管理器 - Secure Ledger
 
 一个基于 Electron 的本地凭证管理与自动化登录平台，支持自动化登录和 SSH 连接。
 
@@ -230,17 +230,17 @@ sudo apt install -y nodejs
 
 3. 运行诊断脚本：
 ```bash
-sudo /opt/密钥终端/resources/scripts/diagnose.sh
+sudo /opt/账号管理器/resources/scripts/diagnose.sh
 ```
 
 4. 运行重新编译脚本：
 ```bash
-sudo /opt/密钥终端/resources/scripts/rebuild-native.sh
+sudo /opt/账号管理器/resources/scripts/rebuild-native.sh
 ```
 
 如果脚本失败，手动编译：
 ```bash
-cd /opt/密钥终端/resources/app.asar.unpacked/node_modules/better-sqlite3
+cd /opt/账号管理器/resources/app.asar.unpacked/node_modules/better-sqlite3
 sudo npm install -g node-gyp
 node-gyp rebuild --release
 ```

@@ -55,9 +55,9 @@ echo ""
 
 # 检查应用目录
 echo "应用目录:"
-if [ -d "/opt/密钥终端" ]; then
-    echo "已安装: /opt/密钥终端"
-    ls -la /opt/密钥终端/ 2>/dev/null | head -10
+if [ -d "/opt/账号管理器" ]; then
+    echo "已安装: /opt/账号管理器"
+    ls -la /opt/账号管理器/ 2>/dev/null | head -10
 else
     echo "未找到"
 fi
@@ -65,7 +65,7 @@ echo ""
 
 # 检查 better-sqlite3 二进制
 echo "better-sqlite3 二进制:"
-SQLITE3_NODE="/opt/密钥终端/resources/app.asar.unpacked/node_modules/better-sqlite3/build/Release/better_sqlite3.node"
+SQLITE3_NODE="/opt/账号管理器/resources/app.asar.unpacked/node_modules/better-sqlite3/build/Release/better_sqlite3.node"
 if [ -f "$SQLITE3_NODE" ]; then
     echo "文件存在: $SQLITE3_NODE"
     echo "依赖检查:"

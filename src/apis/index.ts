@@ -67,6 +67,8 @@ export interface ShareRestrictions {
   maxUsage?: number
   durationHours?: number
   expiresAt?: string  // ISO datetime string
+  targetIp?: string       // Target IP or CIDR for import restriction
+  importDeadline?: number // Hours from generation until import deadline
 }
 
 // Token status for display
@@ -155,7 +157,10 @@ export const chromeApi = {
 // ============ 登录执行 API ============
 export const loginApi = {
   execute: (endpointId: number, chromePath: string, wsEndpoint?: string) =>
-    invoke<{ success: boolean; message: string; isConnected?: boolean }>('login:execute', { endpointId, chromePath, wsEndpoint })
+    invoke<{ success: boolean; message: string; isConnected?: boolean }>('login:execute', { endpointId, chromePath, wsEndpoint }),
+  
+  cancel: () =>
+    invoke<void>('login:cancel')
 }
 
 // ============ SSH API ============
@@ -598,4 +603,26 @@ export const secureKeyStorageApi = {
   // 检查加密服务是否可用
   isEncryptionAvailable: () =>
     invoke<{ available: boolean }>('secureKeyStorage:isEncryptionAvailable')
+}
+
+// ============ Token 接收服务 API ============
+export const tokenReceiverApi = {
+  // 启动 Token 接收服务
+  start: () =>
+    invoke<{ success: boolean; port?: number; error?: string }>('tokenReceiver:start'),
+  
+  // 停止 Token 接收服务
+  stop: () =>
+    invoke<{ success: boolean }>('tokenReceiver:stop'),
+  
+  // 获取 Token 接收服务状态
+  status: () =>
+    invoke<{ running: boolean; port: number | null }>('tokenReceiver:status')
+}
+
+// ============ 网络工具 API ============
+export const networkApi = {
+  // 获取本机 IP 地址列表
+  getLocalIPs: () =>
+    invoke<{ ips: string[] }>('network:getLocalIPs')
 }

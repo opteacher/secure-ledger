@@ -8,7 +8,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
         </div>
-        <h1 class="text-3xl font-bold text-fg-primary mb-2 font-display">密钥终端</h1>
+        <h1 class="text-3xl font-bold text-fg-primary mb-2 font-display">账号管理器</h1>
         <p class="text-fg-muted">Secure Ledger</p>
       </div>
       
