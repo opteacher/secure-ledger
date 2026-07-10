@@ -15,7 +15,15 @@
     "build:mac": "node scripts/prepare-build.js darwin && vue-tsc --noEmit && vite build && electron-builder --mac",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",
-    "create-test-user": "ts-node scripts/create-test-user.ts"
+    "create-test-user": "ts-node scripts/create-test-user.ts",
+    "test": "vitest run",
+    "test:backend": "vitest run --config vitest.config.ts",
+    "test:coverage": "vitest run --config vitest.config.ts --coverage",
+    "test:e2e": "playwright test --config playwright.config.ts",
+    "test:frontend": "vitest run --config vitest.config.frontend.ts",
+    "test:frontend:coverage": "vitest run --config vitest.config.frontend.ts --coverage",
+    "test:report": "node scripts/generate-test-report.js",
+    "decrypt-db": "npx tsx scripts/decrypt-db.ts"
   },
   "keywords": [
     "password-manager",
@@ -39,16 +47,20 @@
     "vue-router": "^4.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.11.17",
     "@types/sql.js": "^1.4.10",
     "@types/ssh2": "^1.15.0",
     "@types/uuid": "^9.0.0",
     "@vitejs/plugin-vue": "^5.0.4",
+    "@vitest/coverage-v8": "^4.1.8",
+    "@vue/test-utils": "^2.4.10",
     "autoprefixer": "^10.4.17",
     "better-sqlite3": "^12.8.0",
     "electron": "^29.0.0",
     "electron-builder": "^24.13.3",
+    "jsdom": "^29.1.1",
     "png-to-ico": "^3.0.1",
     "postcss": "^8.4.35",
     "sharp": "^0.34.5",
@@ -59,6 +71,7 @@
     "vite": "^5.1.4",
     "vite-plugin-electron": "^0.28.6",
     "vite-plugin-electron-renderer": "^0.14.5",
+    "vitest": "^4.1.8",
     "vue-tsc": "^2.0.6",
     "xlsx": "^0.18.5"
   }

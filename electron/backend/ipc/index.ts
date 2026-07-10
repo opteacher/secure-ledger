@@ -329,8 +329,8 @@ function handleSlotDelete(id: number) {
   return slotService.deleteSlot(id)
 }
 
-function handleSlotDecryptValue(data: { encryptedValue: string }) {
-  return slotService.decryptSlotValueAuto(data.encryptedValue)
+function handleSlotDecryptValue(data: { encryptedValue: string; pageId?: number }) {
+  return slotService.decryptSlotValueAuto(data.encryptedValue, data.pageId)
 }
 
 // ============ Chrome 检测处理器 ============

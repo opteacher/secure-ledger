@@ -58,6 +58,10 @@
   },
   "extraResources": [
     {
+      "from": "root-keys/root_public.pem",
+      "to": "keys/root_public.pem"
+    },
+    {
       "from": "public",
       "to": "public"
     },

@@ -93,7 +93,8 @@ export function publicEncrypt(plaintext: string): string | null {
     const encrypted = crypto.publicEncrypt(
       {
         key: cachedPublicKey,
-        padding: crypto.constants.RSA_PKCS1_PADDING
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256'
       },
       buffer
     )
@@ -125,7 +126,8 @@ export function publicEncryptWithKey(plaintext: string, publicKey: string): stri
     const encrypted = crypto.publicEncrypt(
       {
         key: publicKey,
-        padding: crypto.constants.RSA_PKCS1_PADDING
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256'
       },
       buffer
     )
@@ -151,7 +153,8 @@ export function privateDecrypt(ciphertext: string): string | null {
     const decrypted = crypto.privateDecrypt(
       {
         key: cachedPrivateKey,
-        padding: crypto.constants.RSA_PKCS1_PADDING
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256'
       },
       buffer
     )
@@ -178,7 +181,8 @@ export function privateDecryptWithKey(ciphertext: string, privateKey: string): s
     const decrypted = crypto.privateDecrypt(
       {
         key: privateKey,
-        padding: crypto.constants.RSA_PKCS1_PADDING
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256'
       },
       buffer
     )
@@ -352,7 +356,8 @@ export function isNewFormatEncrypted(value: string): boolean {
     crypto.privateDecrypt(
       {
         key: cachedPrivateKey,
-        padding: crypto.constants.RSA_PKCS1_PADDING
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
+        oaepHash: 'sha256'
       },
       buffer
     )

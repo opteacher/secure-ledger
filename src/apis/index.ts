@@ -139,8 +139,8 @@ export const slotApi = {
   delete: (id: number) => invoke<boolean>('slot:delete', id),
   
   // 解密加密的槽值
-  decryptValue: (encryptedValue: string) =>
-    invoke<string>('slot:decryptValue', { encryptedValue })
+  decryptValue: (encryptedValue: string, pageId?: number) =>
+    invoke<string>('slot:decryptValue', { encryptedValue, pageId })
 }
 
 // ============ Chrome 检测 API ============

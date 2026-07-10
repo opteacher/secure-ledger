@@ -1,11 +1,7 @@
 /**
  * 构建前准备脚本
- * 根据目标平台复制对应的 Chromium 到构建目录
- * 
- * 使用方法:
- *   node scripts/prepare-build.js win32    # Windows
- *   node scripts/prepare-build.js darwin   # macOS
- *   node scripts/prepare-build.js linux    # Linux
+ * 1. 验证根密钥（必须存在 root-keys/root_public.pem）
+ * 2. 复制 Chromium 到构建目录
  */
 
 const fs = require('fs')
@@ -151,6 +147,46 @@ args.forEach(arg => {
 
 targetPlatform = getTargetPlatform(targetPlatform)
 targetArch = getTargetArch(targetArch)
+
+// ─── 验证根密钥（v1.0 必须） ─────────────────────────────
+function validateRootKeys() {
+  const rootKeysDir = path.join(PROJECT_ROOT, 'root-keys')
+  const publicKeyPath = path.join(rootKeysDir, 'root_public.pem')
+  const privateKeyPath = path.join(rootKeysDir, 'root_private.pem')
+
+  console.log('\n========================================')
+  console.log('验证根密钥')
+  console.log('========================================')
+
+  if (!fs.existsSync(publicKeyPath)) {
+    console.error('错误: 根公钥不存在!')
+    console.error(`  路径: ${publicKeyPath}`)
+    console.error('')
+    console.error('请先生成根密钥对:')
+    console.error('  node -e "const c=require(\'crypto\');const f=require(\'fs\');')
+    console.error('    f.mkdirSync(\'root-keys\',{recursive:true});')
+    console.error('    const k=c.generateKeyPairSync(\'rsa\',{modulusLength:4096,')
+    console.error('      publicKeyEncoding:{type:\'spki\',format:\'pem\'},')
+    console.error('      privateKeyEncoding:{type:\'pkcs8\',format:\'pem\'}});')
+    console.error('    f.writeFileSync(\'root-keys/root_private.pem\',k.privateKey);')
+    console.error('    f.writeFileSync(\'root-keys/root_public.pem\',k.publicKey)"')
+    console.error('')
+    process.exit(1)
+  }
+
+  if (!fs.existsSync(privateKeyPath)) {
+    console.warn('警告: 根私钥不存在 (仅影响离线恢复功能)')
+    console.warn(`  路径: ${privateKeyPath}`)
+  }
+
+  console.log(`  ✓ 根公钥: ${publicKeyPath}`)
+  if (fs.existsSync(privateKeyPath)) {
+    console.log(`  ✓ 根私钥: ${privateKeyPath}`)
+  }
+  console.log('========================================\n')
+}
+
+validateRootKeys()
 
 // 执行准备
 prepareChromium(targetPlatform, targetArch, useLegacy)

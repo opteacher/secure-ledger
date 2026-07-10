@@ -177,13 +177,21 @@ export async function executeLogin(
             // 获取值（如果是加密的，需要解密）
             let value = slot.value
             if (slot.is_encrypted && value) {
-              value = decryptSlotValue(value)
+              const isDev = typeof process !== 'undefined' && process.env['VITE_DEV_SERVER_URL']
+              if (isDev) {
+                console.debug('[Automation] decrypting slot=' + slot.name + ' action=' + slot.action_type + ' page_id=' + slot.page_id)
+              }
+              value = decryptSlotValue(value, slot.page_id)
             }
             
             // 执行操作
             switch (slot.action_type) {
               case 'input':
                 await locator.fill(value)
+                const isDev = typeof process !== 'undefined' && process.env['VITE_DEV_SERVER_URL']
+              if (isDev) {
+                  console.debug('[Automation] input: xpath=' + slot.element_xpath + ' value_len=' + (value ? value.length : 0))
+                }
                 console.log('[Automation] Input completed (type:', slot.action_type, ', encrypted:', slot.is_encrypted, ')')
                 break
               case 'click':
@@ -211,7 +219,11 @@ export async function executeLogin(
             // 获取值（如果是加密的，需要解密）
             let value = slot.value
             if (slot.is_encrypted && value) {
-              value = decryptSlotValue(value)
+              const isDev = typeof process !== 'undefined' && process.env['VITE_DEV_SERVER_URL']
+              if (isDev) {
+                console.debug('[Automation:legacy] decrypting slot=' + slot.name + ' page_id=' + slot.page_id)
+              }
+              value = decryptSlotValue(value, slot.page_id)
             }
             
             // 执行操作（使用 ElementHandle API）

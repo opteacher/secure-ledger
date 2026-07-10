@@ -672,8 +672,8 @@ async function connectSSH() {
     
     if (result.success) {
       sshConnected.value = true
-      // 等待 ttyd 启动
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // 等待 ttyd 完全启动
+      await new Promise(resolve => setTimeout(resolve, 2000))
       sshWebviewKey.value++
       sshWebviewSrc.value = 'http://127.0.0.1:7681'
     } else if (result.message.startsWith('NEED_PUTTY:')) {
@@ -705,7 +705,7 @@ async function connectSSH() {
           
           if (retryResult.success) {
             sshConnected.value = true
-            await new Promise(resolve => setTimeout(resolve, 500))
+            await new Promise(resolve => setTimeout(resolve, 2000))
             sshWebviewKey.value++
             sshWebviewSrc.value = 'http://127.0.0.1:7681'
           } else {
@@ -759,7 +759,7 @@ onMounted(async () => {
           if (passwordSlot && passwordSlot.value) {
             if (passwordSlot.is_encrypted) {
               try {
-                sshConfig.value.password = await slotApi.decryptValue(passwordSlot.value)
+                sshConfig.value.password = await slotApi.decryptValue(passwordSlot.value, passwordSlot.page_id)
               } catch (e) {
                 console.error('Failed to decrypt SSH password:', e)
                 sshConfig.value.password = ''
@@ -776,7 +776,7 @@ onMounted(async () => {
           if (passphraseSlot && passphraseSlot.value) {
             if (passphraseSlot.is_encrypted) {
               try {
-                sshConfig.value.passphrase = await slotApi.decryptValue(passphraseSlot.value)
+                sshConfig.value.passphrase = await slotApi.decryptValue(passphraseSlot.value, passphraseSlot.page_id)
               } catch (e) {
                 console.error('Failed to decrypt SSH passphrase:', e)
                 sshConfig.value.passphrase = ''
@@ -936,15 +936,25 @@ async function executePages(fromIndex: number, toIndex: number, executeLastPageS
             console.log(`[执行] 页面 ${i + 1} 操作:`, slot.action_type, slot.element_xpath)
             
             if (!webviewRef.value) continue
+
+            // 解密加密的 slot 值
+            let slotValue = slot.value
+            if (slot.is_encrypted && slotValue) {
+              try {
+                slotValue = await slotApi.decryptValue(slotValue, slot.page_id)
+              } catch (e: any) {
+                console.error('[执行] 解密失败:', e.message)
+              }
+            }
             
             const jsCode = `
               (function() {
                 const result = document.evaluate('${slot.element_xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
                 const element = result.singleNodeValue;
                 if (element) {
-                  ${slot.action_type === 'input' ? `element.value = '${slot.value.replace(/'/g, "\\'")}'; element.dispatchEvent(new Event('input', { bubbles: true }));` : 
+                  ${slot.action_type === 'input' ? `element.value = '${slotValue.replace(/'/g, "\\'")}'; element.dispatchEvent(new Event('input', { bubbles: true }));` : 
                     slot.action_type === 'click' ? 'element.click();' : 
-                    `element.value = '${slot.value}';`}
+                    `element.value = '${slotValue}';`}
                   return true;
                 }
                 return false;

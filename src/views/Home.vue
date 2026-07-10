@@ -2071,7 +2071,7 @@ async function selectTerminal(terminal: TerminalConfig) {
     if (passwordSlot?.value) {
       if (passwordSlot.is_encrypted) {
         try {
-          password = await slotApi.decryptValue(passwordSlot.value)
+          password = await slotApi.decryptValue(passwordSlot.value, passwordSlot.page_id)
         } catch (e) {
           console.error('Failed to decrypt SSH password:', e)
           messageError('密码解密失败')
@@ -2194,17 +2194,49 @@ async function startUpload(endpoint: Endpoint, isFolder: boolean) {
   const keyfileSlot = slots.find(s => s.name === 'SSH密钥文件')
   const passphraseSlot = slots.find(s => s.name === 'SSH密钥密码')
   
+  // 解密密码（如果加密的话）
+  let password: string | undefined
+  if (passwordSlot?.value) {
+    if (passwordSlot.is_encrypted) {
+      try {
+        password = await slotApi.decryptValue(passwordSlot.value, passwordSlot.page_id)
+      } catch (e) {
+        console.error('Failed to decrypt SSH password:', e)
+        messageError('密码解密失败')
+        return
+      }
+    } else {
+      password = passwordSlot.value
+    }
+  }
+  
+  // 解密密钥密码（如果加密的话）
+  let passphrase: string | undefined
+  if (passphraseSlot?.value) {
+    if (passphraseSlot.is_encrypted) {
+      try {
+        passphrase = await slotApi.decryptValue(passphraseSlot.value, passphraseSlot.page_id)
+      } catch (e) {
+        console.error('Failed to decrypt SSH passphrase:', e)
+        messageError('密钥密码解密失败')
+        return
+      }
+    } else {
+      passphrase = passphraseSlot.value
+    }
+  }
+  
   // 构建配置（确保所有值都是普通字符串，不是 undefined）
   const config: SSHConfig = {
     host,
     port,
     username: usernameSlot?.value || '',
-    password: passwordSlot?.value || undefined,
+    password,
     keyfilePath: keyfileSlot?.value || undefined,
-    passphrase: passphraseSlot?.value || undefined
+    passphrase
   }
   
-  console.log('SSH上传配置:', { host, port, username: config.username, hasPassword: !!config.password, hasKeyfile: !!config.keyfilePath })
+  console.log('SSH上传配置:', { host, port, username: config.username, hasPassword: !!password, hasKeyfile: !!config.keyfilePath })
   
   try {
     const result = await sshApi.selectUploadFiles(isFolder)

@@ -1,5 +1,6 @@
 import { db } from '../database/init'
-import { hybridEncrypt, hybridDecrypt, isHybridEncrypted } from '../crypto/hybrid'
+import { hybridEncrypt, hybridDecrypt, hybridEncryptWithKey, hybridDecryptWithKey, isHybridEncrypted } from '../crypto/hybrid'
+import { loadEndpointKeys, loadSubPrivateKey } from '../crypto/keyHierarchy'
 import type { Slot } from '../database/init'
 
 // 数据库返回的原始 Slot 类型（is_encrypted 是 INTEGER）
@@ -15,6 +16,9 @@ interface RawSlot {
   timeout: number
   created_at: string
   updated_at: string
+  username?: string
+  keyfile?: string
+  passphrase?: string
 }
 
 // 将原始 Slot 转换为 Slot
@@ -23,6 +27,36 @@ function convertSlot(raw: RawSlot): Slot {
     ...raw,
     is_encrypted: raw.is_encrypted === 1
   }
+}
+
+/**
+ * 根据 slot 的 page_id 查找所属 endpoint_id
+ */
+function getEndpointIdForSlot(slotPageId: number): number | null {
+  const row = db.queryOne<{ endpoint_id: number }>(
+    'SELECT endpoint_id FROM page WHERE id = ?',
+    [slotPageId]
+  )
+  return row?.endpoint_id || null
+}
+
+/**
+ * 获取 slot 所属端点的子公钥（用于加密）
+ */
+function getSubPublicKeyForSlot(slotPageId: number): string | null {
+  const endpointId = getEndpointIdForSlot(slotPageId)
+  if (!endpointId) return null
+  const keys = loadEndpointKeys(endpointId)
+  return keys?.sub_public_key || null
+}
+
+/**
+ * 获取 slot 所属端点的子私钥（用于解密）
+ */
+function getSubPrivateKeyForSlot(slotPageId: number): string | null {
+  const endpointId = getEndpointIdForSlot(slotPageId)
+  if (!endpointId) return null
+  return loadSubPrivateKey(endpointId)
 }
 
 // 获取步骤页的所有操作槽
@@ -42,36 +76,56 @@ export function getSlot(id: number): Slot | null {
 }
 
 /**
- * 加密敏感值（使用混合加密）
+ * 加密敏感值（使用端点子公钥，回退到全局密钥）
  */
-function encryptValue(value: string): string {
+function encryptValue(value: string, slotPageId?: number): string {
   if (!value) return value
+
+  // 尝试使用端点子密钥
+  if (slotPageId) {
+    const subPublicKey = getSubPublicKeyForSlot(slotPageId)
+    if (subPublicKey) {
+      return hybridEncryptWithKey(value, subPublicKey)
+    }
+  }
+
+  // 回退: 使用全局密钥 (legacy)
   return hybridEncrypt(value)
 }
 
 /**
- * 解密敏感值（自动检测加密类型）
+ * 解密敏感值（自动检测加密类型，优先使用端点子私钥）
  */
-export function decryptValue(encryptedValue: string): string {
+export function decryptValue(encryptedValue: string, slotPageId?: number): string {
   if (!encryptedValue) return encryptedValue
   
-  // 清理可能的换行符
   const cleanValue = encryptedValue.replace(/[\r\n\s]/g, '')
-  
-  // 检查是否是混合加密
-  if (isHybridEncrypted(cleanValue)) {
-    try {
-      const decrypted = hybridDecrypt(cleanValue)
-      return decrypted
-    } catch (error) {
-      console.warn('[Slot] Decryption failed')
-      // 返回原值
-      return encryptedValue
+  if (!isHybridEncrypted(cleanValue)) return encryptedValue
+
+  try {
+    if (slotPageId) {
+      const subPrivateKey = getSubPrivateKeyForSlot(slotPageId)
+      if (subPrivateKey) {
+        const result = hybridDecryptWithKey(cleanValue, subPrivateKey)
+        const isDev = typeof process !== 'undefined' && process.env['VITE_DEV_SERVER_URL']
+        if (isDev) {
+          console.debug('[Slot] page_id=' + slotPageId + ' decrypted=' + (result ? 'OK value="' + result + '"' : 'FAIL'))
+        }
+        return result
+      }
     }
+    // 回退: 使用全局 legacy 密钥
+    if (process.env['DEBUG'] === 'crypto') {
+      console.debug('[Slot] page_id=' + (slotPageId || 'none') + ' no sub-key, fallback to legacy')
+    }
+    return hybridDecrypt(cleanValue)
+  } catch (error) {
+    if (process.env['DEBUG'] === 'crypto') {
+      console.debug('[Slot] page_id=' + (slotPageId || 'none') + ' ERROR: ' + (error as Error).message)
+    }
+    console.debug('[Slot] Decryption failed:', (error as Error).message || error)
+    return encryptedValue
   }
-  
-  // 未加密的数据，直接返回
-  return encryptedValue
 }
 
 // 创建操作槽
@@ -94,10 +148,10 @@ export function createSlot(data: {
     data.order_index = (maxOrder?.max ?? -1) + 1
   }
 
-  // 如果需要加密
+  // 如果需要加密（使用端点子公钥）
   let finalValue = data.value
   if (data.is_encrypted && data.value) {
-    finalValue = encryptValue(data.value)
+    finalValue = encryptValue(data.value, data.page_id)
   }
 
   const result = db.run(
@@ -151,10 +205,13 @@ export function updateSlot(id: number, updates: Partial<Slot>): boolean {
     values.push(updates.action_type)
   }
   if (updates.value !== undefined) {
-    // 检查是否需要加密
+    // 检查是否需要加密（使用端点子公钥）
     if (updates.is_encrypted) {
+      // 获取 slot 的 page_id 用于确定端点
+      const slot = getSlot(id)
+      const pageId = slot?.page_id
       fields.push('value = ?')
-      values.push(encryptValue(updates.value))
+      values.push(encryptValue(updates.value, pageId))
     } else {
       fields.push('value = ?')
       values.push(updates.value)
@@ -185,13 +242,13 @@ export function deleteSlot(id: number): boolean {
 }
 
 // 解密操作槽的值
-export function decryptSlotValue(encryptedValue: string): string {
-  return decryptValue(encryptedValue)
+export function decryptSlotValue(encryptedValue: string, slotPageId?: number): string {
+  return decryptValue(encryptedValue, slotPageId)
 }
 
 // 解密操作槽的值（自动检测加密类型）
-export function decryptSlotValueAuto(encryptedValue: string): string {
-  return decryptValue(encryptedValue)
+export function decryptSlotValueAuto(encryptedValue: string, slotPageId?: number): string {
+  return decryptValue(encryptedValue, slotPageId)
 }
 
 // 调整操作槽顺序

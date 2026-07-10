@@ -182,6 +182,59 @@ async function backgroundInit() {
         const publicKey = secureStorage.loadPublicKey()
         if (privateKey) setCachedPrivateKey(privateKey)
         if (publicKey) setCachedPublicKey(publicKey)
+
+        // ─── v1.0 层级密钥初始化 ─────────────────────────
+        sendSplashProgress('正在初始化层级密钥...', 47)
+        const { initRootPublicKey, getEncryptionVersion, migrateFromLegacy } = await import('./backend/crypto/keyHierarchy')
+
+        // 1. 加载根公钥 — v1.0 强制要求，缺失则拒绝启动
+        const rootKeyResult = initRootPublicKey()
+        if (!rootKeyResult.loaded) {
+          logger.error('v1.0 加密方案要求根公钥必须部署，拒绝启动')
+          await showFatalError(
+            '根公钥未部署',
+            'v1.0 加密方案要求管理员部署根公钥 (root_public.pem) 才能启动应用。\n\n' +
+            '请将 root_public.pem 放入以下目录:\n' +
+            `  ${rootKeyResult.path}\n\n` +
+            '根密钥对由管理员在离线环境生成，详见 docs/admin-guide-v1.0.md'
+          )
+          app.quit()
+          return
+        }
+        logger.info('Root public key loaded:', rootKeyResult.path)
+
+        // 1b. 修复缺失的备份（迁移时根公钥未部署的场景）
+        const { repairMissingBackups } = await import('./backend/crypto/keyHierarchy')
+        const repairResult = repairMissingBackups()
+        if (repairResult.fixed > 0) {
+          logger.info(`Repaired ${repairResult.fixed} missing backups`)
+        }
+        if (repairResult.errors.length > 0) {
+          logger.warn('Backup repair errors:', repairResult.errors)
+        }
+
+        // 2. 每次启动检查是否需要 v0→v1.0 迁移
+        const version = getEncryptionVersion()
+        if (version !== 'v1.0') {
+          logger.info('Encryption version is', version || 'null (legacy)', '— starting migration to v1.0')
+          sendSplashProgress('正在迁移加密方案 (v0→v1.0)...', 48)
+          const migrationResult = await migrateFromLegacy()
+          logger.info('Migration result:', JSON.stringify(migrationResult))
+          if (migrationResult.success) {
+            sendSplashProgress(
+              `迁移完成: ${migrationResult.endpointsMigrated} 端点, ${migrationResult.slotsReEncrypted} 槽`,
+              49
+            )
+          } else {
+            logger.error('Migration had errors:', migrationResult.errors)
+            sendSplashProgress(
+              `迁移部分完成: ${migrationResult.slotsReEncrypted} 槽 (${migrationResult.errors.length} 错误)`,
+              49
+            )
+          }
+        } else {
+          logger.info('Encryption already at v1.0 — migration skipped')
+        }
         
         // 自动加密未加密的敏感数据
         sendSplashProgress('正在加密敏感数据...', 48)

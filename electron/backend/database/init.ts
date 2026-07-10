@@ -225,6 +225,30 @@ export function initTables(): void {
     run(`ALTER TABLE endpoint ADD COLUMN share_token TEXT DEFAULT ''`)
   } catch {}
 
+  // ─── v1.0 层级密钥表 ───
+  exec(`
+    CREATE TABLE IF NOT EXISTS endpoint_key (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      endpoint_id INTEGER NOT NULL UNIQUE,
+      sub_public_key TEXT NOT NULL,
+      encrypted_sub_private_key TEXT NOT NULL,
+      backup_encrypted_key TEXT NOT NULL,
+      key_id TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (endpoint_id) REFERENCES endpoint(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS system_config (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+
+  // 兼容: endpoint_key 表可能从旧版本 ALTER TABLE 添加
+  try { run(`ALTER TABLE endpoint_key ADD COLUMN key_id TEXT DEFAULT ''`) } catch {}
+  try { run(`ALTER TABLE endpoint_key ADD COLUMN backup_encrypted_key TEXT DEFAULT ''`) } catch {}
+
   console.log('Database tables initialized')
 }
 

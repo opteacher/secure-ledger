@@ -2,6 +2,7 @@ import { db } from '../database/init'
 import type { Endpoint, Page, Slot } from '../database/init'
 import { listSlots } from './slot'
 import * as endpointShare from './endpointShare'
+import { generateEndpointSubKeyPair, saveEndpointKeys, getEncryptionVersion, migrateFromLegacy } from '../crypto/keyHierarchy'
 
 // 完整的登录端数据 (包含步骤和操作)
 export interface EndpointFull extends Endpoint {
@@ -55,8 +56,22 @@ export function createEndpoint(data: {
     [data.name, data.icon || '', data.login_type, '', now, now]
   )
 
+  const endpointId = result.lastInsertRowid as number
+
+  // v1.0: 为新端点生成子密钥对
+  const version = getEncryptionVersion()
+  if (version === 'v1.0' || version === null) {
+    try {
+      const subKeys = generateEndpointSubKeyPair()
+      saveEndpointKeys(endpointId, subKeys.publicKey, subKeys.privateKey)
+      console.log(`[Endpoint] Sub-key pair generated for endpoint ${endpointId}`)
+    } catch (e: any) {
+      console.warn(`[Endpoint] Failed to generate sub-keys for endpoint ${endpointId}:`, e.message)
+    }
+  }
+
   return {
-    id: result.lastInsertRowid as number,
+    id: endpointId,
     name: data.name,
     icon: data.icon || '',
     login_type: data.login_type,
@@ -108,6 +123,9 @@ export function deleteEndpoint(id: number): boolean {
   
   // 删除登录端
   const result = db.run('DELETE FROM endpoint WHERE id = ?', [id])
+
+  // 删除端点密钥 (v1.0)
+  try { db.run('DELETE FROM endpoint_key WHERE endpoint_id = ?', [id]) } catch (_) {}
   
   return result.changes > 0
 }

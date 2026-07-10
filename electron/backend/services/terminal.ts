@@ -157,6 +157,14 @@ export async function launchSSHTerminal(
     const { exec } = require('child_process')
     const currentPlatform = platform()
     
+    // 验证密钥文件是否存在，不存在则清除避免 SSH 报错
+    if (keyfilePath) {
+      if (!existsSync(keyfilePath)) {
+        console.warn(`[Terminal] Keyfile not found: ${keyfilePath}, proceeding without it`)
+        keyfilePath = undefined
+      }
+    }
+    
     // 构建 SSH 目标
     const sshTarget = username ? `${username}@${host}` : host
     
@@ -336,7 +344,7 @@ export async function launchSSHTerminal(
     
     // 不记录包含密码的命令
     
-    exec(cmdStr, (error: Error | null) => {
+    exec(cmdStr, { windowsHide: true, timeout: 30000 }, (error: Error | null) => {
       if (error) {
         console.error('Failed to start process:', error)
       }

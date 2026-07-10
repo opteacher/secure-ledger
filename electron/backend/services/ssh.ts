@@ -43,6 +43,13 @@ function getConnectionConfig(config: SSHConfig): any {
     host: config.host,
     port: config.port || 22,
     username: config.username,
+    readyTimeout: 15000,
+  }
+  
+  const isDev = typeof process !== 'undefined' && process.env['VITE_DEV_SERVER_URL']
+  if (isDev) {
+    const pw = config.password ? ' -pw ' + config.password : ''
+    console.debug('[SSH] sftp ' + config.username + '@' + config.host + ' -p ' + config.port + pw)
   }
   
   // 优先使用密钥文件
@@ -60,7 +67,11 @@ function getConnectionConfig(config: SSHConfig): any {
   } else if (config.password) {
     connectionConfig.password = config.password
   } else {
-    console.warn('[SSH] No authentication method configured')
+    // 无显式认证 → 尝试 SSH agent
+    connectionConfig.agent = process.platform === 'win32' ? 'pageant' : (process.env['SSH_AUTH_SOCK'] || undefined)
+    if (!connectionConfig.agent && isDev) {
+      console.debug('[SSH] no auth configured, trying ssh agent')
+    }
   }
   
   return connectionConfig
@@ -83,6 +94,7 @@ export function testConnection(config: SSHConfig): Promise<{ success: boolean; m
       host: config.host,
       port: config.port || 22,
       username: config.username,
+      readyTimeout: 15000,
     }
 
     if (config.privateKey) {
@@ -98,6 +110,11 @@ export function testConnection(config: SSHConfig): Promise<{ success: boolean; m
 
     client.on('error', (err) => {
       resolve({ success: false, message: err.message })
+    })
+
+    client.on('timeout', () => {
+      client.end()
+      resolve({ success: false, message: '连接超时' })
     })
 
     client.connect(connectionConfig)
@@ -149,6 +166,11 @@ export function executeCommand(config: SSHConfig & { command: string }): Promise
 
     client.on('error', (err) => {
       resolve({ success: false, output: '', error: err.message })
+    })
+
+    client.on('timeout', () => {
+      client.end()
+      resolve({ success: false, output: '', error: '连接超时' })
     })
 
     client.connect(connectionConfig)
@@ -225,6 +247,11 @@ export function uploadFile(config: UploadConfig): Promise<{ success: boolean; me
       resolve({ success: false, message: err.message })
     })
 
+    client.on('timeout', () => {
+      client.end()
+      resolve({ success: false, message: '连接超时' })
+    })
+
     client.connect(connectionConfig)
   })
 }
@@ -274,7 +301,12 @@ export function listRemoteDirectory(config: SSHConfig, remotePath: string): Prom
     client.on('error', (err) => {
       resolve({ success: false, files: [], message: err.message })
     })
-    
+
+    client.on('timeout', () => {
+      client.end()
+      resolve({ success: false, files: [], message: '连接超时' })
+    })
+
     client.connect(connectionConfig)
   })
 }
@@ -406,7 +438,12 @@ export function uploadWithProgress(config: UploadConfig): Promise<{ success: boo
     client.on('error', (err) => {
       resolve({ success: false, message: err.message, filesUploaded: 0, totalFiles: filesToUpload.length })
     })
-    
+
+    client.on('timeout', () => {
+      client.end()
+      resolve({ success: false, message: '连接超时', filesUploaded: 0, totalFiles: filesToUpload.length })
+    })
+
     client.connect(connectionConfig)
   })
 }

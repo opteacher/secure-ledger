@@ -84,7 +84,8 @@ function redirectConsole(): void {
     log: console.log,
     info: console.info,
     warn: console.warn,
-    error: console.error
+    error: console.error,
+    debug: console.debug
   }
   
   console.log = (...args: any[]) => {
@@ -105,6 +106,11 @@ function redirectConsole(): void {
   console.error = (...args: any[]) => {
     originalConsole.error(...args)
     log('ERROR', ...args)
+  }
+
+  console.debug = (...args: any[]) => {
+    originalConsole.debug(...args)
+    log('DEBUG', ...args)
   }
 }
 

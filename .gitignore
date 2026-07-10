@@ -58,3 +58,14 @@ tools/
 
 # Decrypted output files
 *.xlsx
+
+# Root keys (admin offline — NEVER commit private key)
+root-keys/
+root_private*.pem
+
+graphify-out/
+
+# Test reports and results
+tests/reports/
+test-results/
+playwright-report/

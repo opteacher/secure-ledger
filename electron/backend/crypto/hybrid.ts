@@ -16,12 +16,15 @@
 import crypto from 'crypto'
 import { 
   publicEncrypt, 
+  publicEncryptWithKey,
   privateDecrypt, 
+  privateDecryptWithKey,
   loadPrivateKey, 
   loadPublicKey,
   // 旧方案（用于兼容）
   privateEncrypt,
-  publicDecrypt
+  publicDecrypt,
+  publicDecryptWithKey
 } from './rsa'
 
 const AES_KEY_SIZE = 32 // 256 bits
@@ -180,6 +183,111 @@ function aesRsaDecrypt(ciphertext: string): string {
     console.error('[Hybrid] AES decryption failed:', error)
     throw new Error('Decryption failed')
   }
+}
+
+// ============================================
+// 端点子密钥支持：使用自定义密钥对加解密
+// ============================================
+
+/**
+ * 使用指定的公钥加密数据（用于端点子密钥）
+ * 
+ * 如果未提供公钥，回退到默认的 hybridEncrypt（使用系统密钥）
+ * 
+ * @param plaintext 明文
+ * @param publicKey 端点特定的 PEM 格式公钥
+ * @returns 加密后的字符串
+ */
+export function hybridEncryptWithKey(plaintext: string, publicKey: string): string {
+  if (!plaintext) return plaintext
+  if (!publicKey) return hybridEncrypt(plaintext)
+
+  const buffer = Buffer.from(plaintext, 'utf-8')
+  if (buffer.length <= RSA_MAX_SIZE) {
+    const encrypted = publicEncryptWithKey(plaintext, publicKey)
+    if (encrypted) return encrypted
+    console.warn('[Hybrid] RSA encryption failed with custom key, falling back to hybrid')
+  }
+
+  // AES + RSA hybrid with custom public key
+  const aesKey = crypto.randomBytes(AES_KEY_SIZE)
+  const iv = crypto.randomBytes(AES_IV_SIZE)
+  const cipher = crypto.createCipheriv(AES_ALGORITHM, aesKey, iv)
+  let encrypted = cipher.update(plaintext, 'utf-8', 'hex')
+  encrypted += cipher.final('hex')
+  const authTag = cipher.getAuthTag()
+
+  const aesKeyHex = aesKey.toString('hex')
+  const encryptedKey = publicEncryptWithKey(aesKeyHex, publicKey)
+  if (!encryptedKey) throw new Error('Encryption failed')
+
+  return `${encryptedKey}:${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`
+}
+
+/**
+ * 使用指定的私钥解密数据（用于端点子密钥）
+ * 
+ * 支持纯 RSA 和混合加密两种格式。
+ * 如果未提供私钥，回退到默认的 hybridDecrypt（使用系统密钥）
+ * 
+ * @param ciphertext 密文
+ * @param privateKey 端点特定的 PEM 格式私钥
+ * @returns 解密后的明文
+ */
+export function hybridDecryptWithKey(ciphertext: string, privateKey: string): string {
+  if (!ciphertext) return ciphertext
+  if (!privateKey) return hybridDecrypt(ciphertext)
+
+  const cleanValue = ciphertext.replace(/[\r\n\s]/g, '')
+  const parts = cleanValue.split(':')
+
+  // 纯 RSA
+  if (parts.length === 1) {
+    const decrypted = privateDecryptWithKey(cleanValue, privateKey)
+    if (decrypted) return decrypted
+
+    // 兼容旧格式
+    const oldDecrypted = publicDecryptWithKey(cleanValue, privateKey)
+    if (oldDecrypted) {
+      console.log('[Hybrid] Decrypted using legacy format with custom key, consider re-encrypting')
+      return oldDecrypted
+    }
+
+    throw new Error('Decryption failed')
+  }
+
+  // 混合加密
+  if (parts.length === 4) {
+    const [encryptedKey, ivHex, authTagHex, encryptedData] = parts
+
+    let aesKeyHex = privateDecryptWithKey(encryptedKey, privateKey)
+    if (!aesKeyHex) {
+      aesKeyHex = publicDecryptWithKey(encryptedKey, privateKey)
+      if (aesKeyHex) {
+        console.log('[Hybrid] Decrypted AES key using legacy format with custom key, consider re-encrypting')
+      }
+    }
+
+    if (!aesKeyHex) throw new Error('Key decryption failed')
+
+    const aesKey = Buffer.from(aesKeyHex, 'hex')
+    const iv = Buffer.from(ivHex, 'hex')
+    const authTag = Buffer.from(authTagHex, 'hex')
+
+    const decipher = crypto.createDecipheriv(AES_ALGORITHM, aesKey, iv)
+    decipher.setAuthTag(authTag)
+
+    try {
+      let decrypted = decipher.update(encryptedData, 'hex', 'utf-8')
+      decrypted += decipher.final('utf-8')
+      return decrypted
+    } catch (error) {
+      console.error('[Hybrid] AES decryption failed:', error)
+      throw new Error('Decryption failed')
+    }
+  }
+
+  return ciphertext
 }
 
 // ============================================

@@ -608,6 +608,14 @@ export function startTtydWithSSH(config: SSHConfig): { success: boolean; message
       return { success: false, message: 'Missing host address' }
     }
     
+    // 验证密钥文件是否存在，不存在则清除避免 SSH 报错
+    if (config.keyfilePath) {
+      if (!existsSync(config.keyfilePath)) {
+        console.warn(`[ttyd] Keyfile not found: ${config.keyfilePath}, proceeding without it`)
+        config.keyfilePath = undefined
+      }
+    }
+    
     // 停止现有进程
     stopTtyd()
     
@@ -619,7 +627,6 @@ export function startTtydWithSSH(config: SSHConfig): { success: boolean; message
     const ttydArgs: string[] = [
       '-p', String(port),
       '-W',  // 允许用户输入
-      '--once'
     ]
     
     if (currentPlatform === 'win32') {
@@ -636,14 +643,22 @@ export function startTtydWithSSH(config: SSHConfig): { success: boolean; message
           }
         }
         
-        // 使用 plink 命令（直接使用 plink，假设已在 PATH 中）
+        // 预先接受 host key
+        const pw = config.passphrase || config.password || ''
+        const target = config.username ? `${config.username}@${config.host}` : config.host
+        try {
+          execSync(`echo y | "${plinkPath}" -ssh ${target} -P ${sshPort} -pw "${pw}" exit`, {
+            encoding: 'utf-8', timeout: 10000, stdio: 'ignore'
+          })
+        } catch (_) { /* OK if fails */ }
+
+        // 使用 plink 命令
         const plinkArgs: string[] = [
-          'plink',
+          plinkPath,
           '-ssh',
           config.username ? `${config.username}@${config.host}` : config.host,
           '-P', String(sshPort),
           '-pw', config.passphrase || config.password || '',
-          '-batch' // 批处理模式，不提示
         ]
         
         ttydArgs.push(...plinkArgs)
@@ -698,12 +713,43 @@ export function startTtydWithSSH(config: SSHConfig): { success: boolean; message
       console.log('Linux/macOS: Using sshpass + ssh')
     }
     
-    // Do not log command with password
-    console.log('Starting ttyd SSH session')
+    // Log command in DEBUG mode
+    if (!app.isPackaged) {
+      const cmd = '"' + ttydPath + '" ' + ttydArgs.join(' ')
+      console.debug('[ttyd] ' + cmd)
+    } else {
+      console.log('Starting ttyd SSH session')
+    }
     
     const ttydProcess = spawn(ttydPath, ttydArgs, {
       detached: true,
-      stdio: 'ignore'
+      stdio: !app.isPackaged ? ['ignore', 'pipe', 'pipe'] : 'ignore'
+    })
+
+    if (!app.isPackaged) {
+      if (ttydProcess.stdout) {
+        let out = ''
+        ttydProcess.stdout.on('data', (data: Buffer) => { out += data.toString() })
+        ttydProcess.on('exit', () => { if (out.trim()) console.debug('[ttyd:stdout] ' + out.trim()) })
+      }
+      if (ttydProcess.stderr) {
+        let err = ''
+        ttydProcess.stderr.on('data', (data: Buffer) => { err += data.toString() })
+        ttydProcess.on('exit', () => { if (err.trim()) console.debug('[ttyd:stderr] ' + err.trim()) })
+      }
+    }
+
+    ttydProcess.on('error', (err) => {
+      console.error('[ttyd] Process error:', err.message)
+    })
+    
+    ttydProcess.on('exit', (code, signal) => {
+      if (code !== 0) {
+        console.warn(`[ttyd] Process exited with code ${code}, signal: ${signal}`)
+      }
+      if (currentTtydProcess === ttydProcess) {
+        currentTtydProcess = null
+      }
     })
     
     currentTtydProcess = ttydProcess
