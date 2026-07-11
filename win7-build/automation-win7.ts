@@ -11,12 +11,12 @@ import puppeteer from 'puppeteer-core'
 import { getEndpoint } from './endpoint'
 import { hybridDecrypt, isHybridEncrypted } from '../crypto/hybrid'
 import type { EndpointFull } from './endpoint'
+import { buildWaitAndActJs, ELEMENT_WAIT_TIMEOUT_MS, type WebviewActionType } from './webview-execution'
 
-// 延时函数
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 // 执行登录自动化（Win7 兼容版）
-export async function executeLogin(endpointId: number, chromePath: string): Promise<{ success: boolean; message: string }> {
+export async function executeLogin(endpointId: number, chromePath: string): Promise<{ success: boolean; message: string; failedXpaths?: string[] }> {
   // 获取登录端完整数据
   const endpoint = getEndpoint(endpointId)
   console.log('[Automation] Get endpoint data:', endpointId, endpoint ? 'success' : 'not found')
@@ -49,6 +49,8 @@ export async function executeLogin(endpointId: number, chromePath: string): Prom
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let page: any = pages[0] || await browser.newPage()
 
+    const failedXpaths: string[] = []
+
     // 隐藏自动化特征
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => false })
@@ -66,9 +68,9 @@ export async function executeLogin(endpointId: number, chromePath: string): Prom
       for (const slot of pageData.slots) {
         try {
           console.log('[Automation] Execute slot:', slot.action_type, slot.element_xpath)
-          
+
           // Win7 兼容：使用 waitForXPath（puppeteer 19.x API）
-          const element = await page.waitForXPath(slot.element_xpath, { timeout: 10000 })
+          const element = await page.waitForXPath(slot.element_xpath, { timeout: ELEMENT_WAIT_TIMEOUT_MS })
           
           if (!element) {
             console.error(`[Automation] Element not found: ${slot.element_xpath}`)
@@ -111,12 +113,20 @@ export async function executeLogin(endpointId: number, chromePath: string): Prom
 
         } catch (slotError: any) {
           console.error(`Slot execution failed [${slot.element_xpath}]:`, slotError.message)
-          // 继续执行下一个操作
+          failedXpaths.push(slot.element_xpath)
         }
       }
 
       // 每个步骤页之间等待一下
       await delay(500)
+    }
+
+    if (failedXpaths.length > 0) {
+      return {
+        success: false,
+        message: `部分步骤执行失败 (${failedXpaths.length} 个): ${failedXpaths.join(', ')}`,
+        failedXpaths,
+      }
     }
 
     return { success: true, message: 'Login executed successfully' }
@@ -131,6 +141,8 @@ export async function executeLogin(endpointId: number, chromePath: string): Prom
 
 // 在 Webview 中执行登录（用于内置预览）
 export async function executeLoginInWebview(endpoint: EndpointFull, webview: Electron.WebviewTag): Promise<void> {
+  const failedXpaths: string[] = []
+
   for (const pageData of endpoint.pages) {
     if (pageData.url) {
       webview.src = pageData.url
@@ -144,20 +156,33 @@ export async function executeLoginInWebview(endpoint: EndpointFull, webview: Ele
     }
 
     for (const slot of pageData.slots) {
-      const xpath = slot.element_xpath
-      const jsCode = `
-        (function() {
-          const result = document.evaluate('${xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-          const element = result.singleNodeValue;
-          if (element) {
-            ${slot.action_type === 'input' ? `element.value = '${slot.value}'` : 
-              slot.action_type === 'click' ? 'element.click()' : 
-              `element.value = '${slot.value}'`}
-          }
-        })()
-      `
-      await webview.executeJavaScript(jsCode)
+      let value = slot.value
+      if (slot.is_encrypted && value) {
+        try {
+          value = hybridDecrypt(value)
+        } catch {
+          console.warn('Failed to decrypt value, using original')
+        }
+      }
+
+      const jsCode = buildWaitAndActJs({
+        xpath: slot.element_xpath,
+        actionType: slot.action_type as WebviewActionType,
+        value,
+      })
+
+      const ok = await webview.executeJavaScript(jsCode)
+      if (ok !== true) {
+        failedXpaths.push(slot.element_xpath)
+        console.error(`[Automation:webview] Element wait timed out: ${slot.element_xpath}`)
+        throw new Error(`等待元素超时: ${slot.element_xpath}`)
+      }
+
       await delay(slot.timeout || 200)
     }
+  }
+
+  if (failedXpaths.length > 0) {
+    throw new Error(`部分步骤执行失败: ${failedXpaths.join(', ')}`)
   }
 }

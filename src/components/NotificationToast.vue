@@ -69,7 +69,7 @@ const removeNotification = notificationStore.removeNotification
   align-items: flex-start;
   gap: 12px;
   padding: 16px 20px;
-  background: white;
+  background: var(--bg-secondary);
   border-radius: 8px;
   box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08),
               0 3px 6px -4px rgba(0, 0, 0, 0.12),
@@ -127,13 +127,13 @@ const removeNotification = notificationStore.removeNotification
 .notification-message {
   font-size: 14px;
   font-weight: 500;
-  color: rgba(0, 0, 0, 0.88);
+  color: var(--text-primary);
   line-height: 1.5;
 }
 
 .notification-description {
   font-size: 13px;
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--text-muted);
   margin-top: 4px;
   line-height: 1.5;
 }
@@ -148,15 +148,15 @@ const removeNotification = notificationStore.removeNotification
   margin: -4px -4px -4px 0;
   border: none;
   background: transparent;
-  color: rgba(0, 0, 0, 0.25);
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: 4px;
   transition: all 0.2s;
 }
 
 .notification-close:hover {
-  color: rgba(0, 0, 0, 0.45);
-  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
 }
 
 /* Transitions */

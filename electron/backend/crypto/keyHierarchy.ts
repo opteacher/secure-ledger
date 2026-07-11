@@ -104,7 +104,7 @@ function getKeysDir(): string {
  * 从 userData/keys/root_public.pem 加载管理员部署的根公钥
  * @returns 加载状态和文件路径
  */
-export function initRootPublicKey(): { loaded: boolean; path: string } {
+export function initRootPublicKey(): { loaded: boolean; path: string; searchedPaths?: string[] } {
   // 多路径查找: userData/keys/ → resources/keys/ (打包) → 项目根目录 (开发)
   const paths = [getKeysDir()]
 
@@ -114,7 +114,7 @@ export function initRootPublicKey(): { loaded: boolean; path: string } {
   }
   // 开发模式: 项目根目录 root-keys/
   if (process.env['VITE_DEV_SERVER_URL']) {
-    paths.push(join(app.getAppPath(), '..', 'root-keys'))
+    paths.push(join(app.getAppPath(), 'root-keys'))
   }
 
   for (const dir of paths) {
@@ -143,7 +143,7 @@ export function initRootPublicKey(): { loaded: boolean; path: string } {
   console.error('[KeyHierarchy] 根公钥未部署 — v1.0 方案强制要求')
   console.error('[KeyHierarchy] 管理员应在离线环境生成根密钥对，然后将 root_public.pem 部署到:')
   for (const p of paths) console.error('  -', p)
-  return { loaded: false, path: fallbackPath }
+  return { loaded: false, path: fallbackPath, searchedPaths: paths }
 }
 
 /**

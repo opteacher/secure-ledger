@@ -13,7 +13,7 @@
       <!-- 文件列表 -->
       <div class="mb-4">
         <h4 class="text-sm font-medium text-fg-secondary mb-2">待上传文件 ({{ files.length }} 个)</h4>
-        <div class="border border-neutral-200 rounded-lg max-h-40 overflow-auto">
+        <div class="border border-surface rounded-lg max-h-40 overflow-auto">
           <div v-if="files.length === 0" class="p-4 text-center text-fg-muted text-sm">
             没有选择文件
           </div>
@@ -21,7 +21,7 @@
             <div 
               v-for="(file, index) in files" 
               :key="index"
-              class="flex items-center justify-between px-3 py-2 border-b border-neutral-100 last:border-b-0 hover:bg-neutral-50"
+              class="flex items-center justify-between px-3 py-2 border-b border-surface-muted last:border-b-0 hover:bg-surface-input"
             >
               <div class="flex items-center gap-2 flex-1 min-w-0">
                 <svg v-if="file.isFolder" class="w-4 h-4 text-warning-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
@@ -51,7 +51,7 @@
         </div>
         
         <!-- 目录列表 -->
-        <div class="border border-neutral-200 rounded-lg max-h-48 overflow-auto bg-neutral-50">
+        <div class="border border-surface rounded-lg max-h-48 overflow-auto bg-surface-input">
           <div v-if="loadingDir" class="p-4 text-center text-fg-muted text-sm">
             加载中...
           </div>
@@ -62,7 +62,7 @@
             <!-- 返回上一级 -->
             <div 
               v-if="remotePath && remotePath !== '/'"
-              class="px-3 py-2 border-b border-neutral-200 hover:bg-neutral-100 cursor-pointer text-sm flex items-center gap-2 text-fg-muted"
+              class="px-3 py-2 border-b border-surface hover:bg-surface-input cursor-pointer text-sm flex items-center gap-2 text-fg-muted"
               @click="goToParentDir"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -72,7 +72,7 @@
             </div>
             <!-- 当前路径 -->
             <div 
-              class="px-3 py-2 border-b border-neutral-200 bg-primary-50 text-sm text-primary-700 cursor-pointer hover:bg-primary-100"
+              class="px-3 py-2 border-b border-surface bg-primary-50 dark:bg-primary-900/40 text-sm text-primary-700 dark:text-primary-300 cursor-pointer hover:bg-primary-100 dark:hover:bg-primary-900/60"
               @click="selectPath(remotePath)"
             >
               <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -88,7 +88,7 @@
             <div
               v-for="dir in directories"
               :key="dir.name"
-              class="px-3 py-2 hover:bg-neutral-100 cursor-pointer text-sm flex items-center gap-2"
+              class="px-3 py-2 hover:bg-surface-input cursor-pointer text-sm flex items-center gap-2"
               @click="navigateToDir(dir.name)"
             >
               <svg class="w-4 h-4 text-warning-500" fill="currentColor" viewBox="0 0 20 20">
@@ -106,7 +106,7 @@
           <input 
             type="checkbox" 
             v-model="overwrite" 
-            class="w-4 h-4 rounded border-neutral-300 text-primary-600"
+            class="w-4 h-4 rounded border-surface text-primary-600"
           />
           <span class="text-sm text-fg-secondary">覆盖同名文件</span>
         </label>

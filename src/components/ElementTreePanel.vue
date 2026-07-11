@@ -1,16 +1,16 @@
 <template>
   <div class="h-full flex flex-col">
-    <div class="p-4 border-b border-neutral-200 flex items-center justify-between bg-white">
+    <div class="p-4 border-b border-surface flex items-center justify-between bg-surface-card">
       <div class="flex items-center gap-2">
         <svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
         </svg>
         <h3 class="font-semibold text-fg-primary">元素树</h3>
-        <span v-if="elements.length > 0" class="px-2 py-0.5 text-xs bg-primary-100 text-primary-700 rounded-full">{{ elements.length }} 个元素</span>
+        <span v-if="elements.length > 0" class="px-2 py-0.5 text-xs bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full">{{ elements.length }} 个元素</span>
       </div>
     </div>
     
-    <div class="flex-1 overflow-auto p-4 bg-neutral-50">
+    <div class="flex-1 overflow-auto p-4 bg-surface-page">
       <div v-if="elements.length === 0" class="text-center py-12">
         <svg class="w-12 h-12 mx-auto text-neutral-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -24,8 +24,8 @@
           <div 
             v-for="el in node.elements" 
             :key="el.xpath"
-            class="group flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-primary-50 transition-colors"
-            :class="{ 'bg-primary-100 ring-1 ring-primary-200': selectedXpath === el.xpath }"
+            class="group flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors"
+            :class="{ 'bg-primary-100 dark:bg-primary-900 ring-1 ring-primary-200 dark:ring-primary-800': selectedXpath === el.xpath }"
             @mouseenter="$emit('select', el.xpath)"
             @mouseleave="$emit('select', null)"
             @dblclick="$emit('add', el.xpath)"
@@ -45,12 +45,12 @@
           </div>
           
           <!-- Child nodes -->
-          <div v-for="child in node.children" :key="child.path" class="ml-4 pl-3 border-l-2 border-neutral-200">
+          <div v-for="child in node.children" :key="child.path" class="ml-4 pl-3 border-l-2 border-surface">
             <div
               v-for="el in child.elements"
               :key="el.xpath"
-              class="group flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-primary-50 transition-colors"
-              :class="{ 'bg-primary-100 ring-1 ring-primary-200': selectedXpath === el.xpath }"
+              class="group flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors"
+              :class="{ 'bg-primary-100 dark:bg-primary-900 ring-1 ring-primary-200 dark:ring-primary-800': selectedXpath === el.xpath }"
               @mouseenter="$emit('select', el.xpath)"
               @mouseleave="$emit('select', null)"
               @dblclick="$emit('add', el.xpath)"

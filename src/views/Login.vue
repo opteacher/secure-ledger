@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-neutral-50 via-white to-primary-50/30 px-4">
+  <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-surface-page via-surface-card to-primary-50/30 px-4">
     <div class="w-full max-w-md animate-fade-in">
       <!-- Logo & Title -->
       <div class="text-center mb-10">
@@ -15,16 +15,16 @@
       <!-- Login/Register Card -->
       <div class="card">
         <!-- Tab Switcher -->
-        <div class="flex mb-6 bg-neutral-100 rounded-lg p-1">
+        <div class="flex mb-6 bg-surface-input rounded-lg p-1">
           <button 
             @click="isRegister = false" 
             class="flex-1 py-2 text-sm font-medium rounded-md transition-colors"
-            :class="!isRegister ? 'bg-white text-primary-600 shadow-sm' : 'text-fg-muted'"
+            :class="!isRegister ? 'bg-surface-card text-primary-600 shadow-sm' : 'text-fg-muted'"
           >登录</button>
           <button 
             @click="isRegister = true" 
             class="flex-1 py-2 text-sm font-medium rounded-md transition-colors"
-            :class="isRegister ? 'bg-white text-primary-600 shadow-sm' : 'text-fg-muted'"
+            :class="isRegister ? 'bg-surface-card text-primary-600 shadow-sm' : 'text-fg-muted'"
           >注册</button>
         </div>
         

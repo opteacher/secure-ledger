@@ -1,9 +1,9 @@
 <template>
-  <div class="flex h-screen bg-neutral-50">
+  <div class="flex h-screen bg-surface-page">
     <!-- Main Content -->
     <main class="flex-1 overflow-auto">
       <!-- Header -->
-      <header class="bg-white/80 backdrop-blur-md border-b border-neutral-200 sticky top-0 z-10">
+      <header class="bg-surface-card/80 backdrop-blur-md border-b border-surface sticky top-0 z-10">
         <div class="px-8 py-5 flex items-center justify-between">
           <!-- Logo - 点击刷新列表 -->
           <a href="#" @click.prevent="refreshList" class="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer" title="点击刷新列表">
@@ -27,7 +27,7 @@
                 v-model="searchKeyword"
                 type="text"
                 placeholder="搜索登录端..."
-                class="pl-9 pr-4 py-2 w-56 text-sm rounded-lg border border-neutral-200 focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none transition-all"
+                class="pl-9 pr-4 py-2 w-56 text-sm rounded-lg border border-surface focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none transition-all"
               />
               <button
                 v-if="searchKeyword"
@@ -75,8 +75,8 @@
 
         <!-- Empty State -->
         <div v-else-if="filteredEndpoints.length === 0 && endpoints.length > 0" class="empty-state">
-          <div class="w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-6">
-            <svg class="w-10 h-10 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<div class="w-20 h-20 rounded-2xl bg-surface-input flex items-center justify-center mb-6">
+                <svg class="w-10 h-10 text-fg-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
@@ -88,8 +88,8 @@
         </div>
 
         <div v-else-if="endpoints.length === 0" class="empty-state">
-          <div class="w-20 h-20 rounded-2xl bg-neutral-100 flex items-center justify-center mb-6">
-            <svg class="w-10 h-10 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<div class="w-20 h-20 rounded-2xl bg-surface-input flex items-center justify-center mb-6">
+                <svg class="w-10 h-10 text-fg-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
             </svg>
           </div>
@@ -234,7 +234,7 @@
           <button
             v-for="chrome in chromeList"
             :key="chrome.path"
-            class="w-full text-left p-4 rounded-xl border border-neutral-200 hover:border-primary-300 hover:bg-primary-50/50 transition-all cursor-pointer"
+            class="w-full text-left p-4 rounded-xl border border-surface hover:border-primary-300 hover:bg-primary-50 dark:hover:bg-primary-900/20/50 dark:hover:bg-primary-900/20 transition-all cursor-pointer"
             @click="selectChrome(chrome.path)"
           >
             <div class="font-medium text-fg-primary">{{ chrome.name }}</div>
@@ -269,10 +269,10 @@
             v-for="terminal in terminalList"
             :key="terminal.id"
             @click="selectTerminal(terminal)"
-            class="w-full flex items-center gap-4 p-4 rounded-lg border border-neutral-200 hover:border-primary-500 hover:bg-primary-50 transition-all text-left"
+            class="w-full flex items-center gap-4 p-4 rounded-lg border border-surface hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all text-left"
           >
-            <div class="w-10 h-10 rounded-lg bg-neutral-100 flex items-center justify-center">
-              <svg class="w-6 h-6 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<div class="w-10 h-10 rounded-lg bg-surface-input flex items-center justify-center">
+                <svg class="w-6 h-6 text-fg-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
@@ -305,9 +305,9 @@
         <div class="absolute inset-0 bg-black/30 backdrop-blur-sm" @click="showSettingsModal = false"></div>
         
         <!-- Sidebar Panel -->
-        <div class="absolute right-0 top-0 h-full w-[520px] bg-white shadow-2xl flex flex-col overflow-hidden">
+        <div class="absolute right-0 top-0 h-full w-[520px] bg-surface-card shadow-2xl flex flex-col overflow-hidden">
           <!-- Header -->
-          <div class="flex items-center justify-between px-6 py-5 border-b border-neutral-200 bg-white">
+          <div class="flex items-center justify-between px-6 py-5 border-b border-surface bg-surface-card">
             <h3 class="text-lg font-semibold text-fg-primary">设置</h3>
             <button @click="showSettingsModal = false" class="btn-icon">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -318,6 +318,38 @@
           
           <!-- Content -->
           <div class="flex-1 overflow-y-auto p-6">
+            <!-- General -->
+            <div class="mb-6">
+              <h4 class="text-sm font-medium text-fg-secondary mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                通用
+              </h4>
+              <div class="space-y-2">
+                <div class="p-3 rounded-lg bg-surface-input">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="text-sm font-medium text-fg-primary">外观主题</p>
+                      <p class="text-xs text-fg-muted">切换浅色/深色主题</p>
+                    </div>
+                    <div class="flex gap-1 p-1 rounded-lg bg-surface-card border border-surface">
+                      <button
+                        @click="setTheme('light')"
+                        :class="themeStore.theme === 'light' ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300' : 'text-fg-muted hover:text-fg-primary'"
+                        class="px-3 py-1 rounded-md text-sm transition-colors"
+                      >浅色</button>
+                      <button
+                        @click="setTheme('dark')"
+                        :class="themeStore.theme === 'dark' ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300' : 'text-fg-muted hover:text-fg-primary'"
+                        class="px-3 py-1 rounded-md text-sm transition-colors"
+                      >深色</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- App Lock Settings -->
             <div class="mb-6">
               <h4 class="text-sm font-medium text-fg-secondary mb-3 flex items-center gap-2">
@@ -328,14 +360,14 @@
               </h4>
               <div class="space-y-3">
                 <!-- 启用开关 -->
-                <div class="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
+                <div class="flex items-center justify-between p-3 rounded-lg bg-surface-input">
                   <div>
                     <p class="text-sm font-medium text-fg-primary">启用自动锁定</p>
                     <p class="text-xs text-fg-muted">空闲一段时间后自动锁定应用</p>
                   </div>
                   <button 
                     @click="toggleLockEnabled" 
-                    :class="lockSettings?.is_enabled ? 'bg-primary-500' : 'bg-gray-300'"
+                    :class="lockSettings?.is_enabled ? 'bg-primary-500' : 'bg-neutral-600'"
                     class="relative w-11 h-6 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
                   >
                     <span 
@@ -346,7 +378,7 @@
                 </div>
                 
                 <!-- 活动时长 -->
-                <div class="p-3 rounded-lg bg-neutral-50" :class="{ 'opacity-50': !lockSettings?.is_enabled }">
+                <div class="p-3 rounded-lg bg-surface-input" :class="{ 'opacity-50': !lockSettings?.is_enabled }">
                   <div class="flex items-center justify-between">
                     <div>
                       <p class="text-sm font-medium text-fg-primary">活动时长</p>
@@ -356,7 +388,7 @@
                       v-model.number="lockDelayMinutes" 
                       @change="updateLockDelay"
                       :disabled="!lockSettings?.is_enabled"
-                      class="px-3 py-1.5 text-sm rounded-lg border border-neutral-300 focus:border-primary-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      class="px-3 py-1.5 text-sm rounded-lg border border-surface focus:border-primary-500 focus:outline-none disabled:bg-surface-input disabled:cursor-not-allowed"
                     >
                       <option :value="0.5">30 秒</option>
                       <option :value="1">1 分钟</option>
@@ -370,7 +402,7 @@
                 </div>
                 
                 <!-- 锁定密码 -->
-                <div class="p-3 rounded-lg bg-neutral-50" :class="{ 'opacity-50': !lockSettings?.is_enabled }">
+                <div class="p-3 rounded-lg bg-surface-input" :class="{ 'opacity-50': !lockSettings?.is_enabled }">
                   <div class="flex items-center justify-between mb-2">
                     <div>
                       <p class="text-sm font-medium text-fg-primary">锁定密码</p>
@@ -380,7 +412,7 @@
                       v-if="lockSettings?.has_password"
                       @click="clearLockPassword"
                       :disabled="!lockSettings?.is_enabled"
-                      class="text-sm text-red-600 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                      class="text-sm text-red-600 hover:text-red-700 disabled:text-fg-muted disabled:cursor-not-allowed"
                     >
                       清除
                     </button>
@@ -394,7 +426,7 @@
                     :placeholder="lockSettings?.has_password ? '输入6位密码修改' : '输入6位密码'"
                     :disabled="!lockSettings?.is_enabled"
                     @blur="saveLockPasswordAuto"
-                    class="w-full px-3 py-2 text-sm rounded-lg border border-neutral-300 focus:border-primary-500 focus:outline-none disabled:bg-gray-100 disabled:cursor-not-allowed tracking-[0.3em]"
+                    class="w-full px-3 py-2 text-sm rounded-lg border border-surface focus:border-primary-500 focus:outline-none disabled:bg-surface-input disabled:cursor-not-allowed tracking-[0.3em]"
                   />
                   <p v-if="lockPasswordError" class="text-xs text-red-500 mt-1">{{ lockPasswordError }}</p>
                 </div>
@@ -410,14 +442,14 @@
                 数据管理
               </h4>
               <div class="space-y-2">
-                <div class="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
+                <div class="flex items-center justify-between p-3 rounded-lg bg-surface-input">
                   <div>
                     <p class="text-sm font-medium text-fg-primary">导出数据</p>
                     <p class="text-xs text-fg-muted">导出所有登录端数据</p>
                   </div>
                   <button @click="handleExportAll" class="btn-secondary text-sm">导出</button>
                 </div>
-                <div class="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
+                <div class="flex items-center justify-between p-3 rounded-lg bg-surface-input">
                   <div>
                     <p class="text-sm font-medium text-fg-primary">导入数据</p>
                     <p class="text-xs text-fg-muted">从JSON文件导入</p>
@@ -430,7 +462,7 @@
                 
 <!-- 加密迁移 -->
                  <!-- 密钥轮换 -->
-                 <div class="flex items-center justify-between p-3 rounded-lg bg-neutral-50">
+                 <div class="flex items-center justify-between p-3 rounded-lg bg-surface-input">
                    <div>
                      <p class="text-sm font-medium text-fg-primary">密钥轮换</p>
                      <p class="text-xs text-fg-muted">重新生成加密密钥并刷新数据</p>
@@ -466,7 +498,7 @@
                 应用配置
               </h4>
               <div class="space-y-2">
-                <div class="p-3 rounded-lg bg-neutral-50">
+                <div class="p-3 rounded-lg bg-surface-input">
                   <div class="flex items-center justify-between mb-2">
                     <div>
                       <p class="text-sm font-medium text-fg-primary">数据库文件</p>
@@ -479,12 +511,12 @@
                       打开
                     </button>
                   </div>
-                  <div class="p-2 rounded bg-white border border-neutral-200">
+                  <div class="p-2 rounded bg-surface-card border border-surface">
                     <p class="text-xs text-fg-muted break-all font-mono">{{ databasePath || '加载中...' }}</p>
                   </div>
                 </div>
-                
-                <div class="p-3 rounded-lg bg-neutral-50">
+
+                <div class="p-3 rounded-lg bg-surface-input">
                   <div class="flex items-center justify-between mb-2">
                     <div>
                       <p class="text-sm font-medium text-fg-primary">日志文件</p>
@@ -495,7 +527,7 @@
                       <button @click="openLogFolder" class="btn-secondary text-sm">打开目录</button>
                     </div>
                   </div>
-                  <div class="p-2 rounded bg-white border border-neutral-200">
+                  <div class="p-2 rounded bg-surface-card border border-surface">
                     <p class="text-xs text-fg-muted break-all font-mono">{{ logPath || '加载中...' }}</p>
                   </div>
                 </div>
@@ -520,10 +552,10 @@
               <div class="space-y-2">
                 <!-- 浏览器列表 -->
                 <div v-for="browser in browserList" :key="browser.id" 
-                     class="p-3 rounded-lg bg-neutral-50">
+                     class="p-3 rounded-lg bg-surface-input">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3 flex-1 min-w-0">
-                      <div class="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center flex-shrink-0">
+                      <div class="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900 flex items-center justify-center flex-shrink-0">
                         <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
                         </svg>
@@ -542,7 +574,7 @@
                       <select 
                         v-model="browser.puppeteer_version" 
                         @change="updateBrowserPuppeteerVersion(browser)"
-                        class="text-xs px-2 py-1 rounded border border-neutral-300 bg-white focus:border-primary-500 focus:outline-none"
+                        class="text-xs px-2 py-1 rounded border border-surface bg-surface-card focus:border-primary-500 focus:outline-none"
                         title="Puppeteer 版本设置"
                       >
                         <option value="auto">自动</option>
@@ -550,7 +582,7 @@
                         <option value="low">低版本</option>
                       </select>
                       <button @click="toggleBrowserStatus(browser)" 
-                              :class="browser.is_enabled ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-500'"
+                              :class="browser.is_enabled ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300' : 'bg-surface-input text-fg-muted'"
                               class="text-xs px-2 py-1 rounded transition-colors">
                         {{ browser.is_enabled ? '启用' : '禁用' }}
                       </button>
@@ -575,13 +607,13 @@
                 </div>
                 
                 <!-- 空状态 -->
-                <div v-if="browserList.length === 0" class="p-4 rounded-lg bg-neutral-50 text-center">
+                <div v-if="browserList.length === 0" class="p-4 rounded-lg bg-surface-input text-center">
                   <p class="text-sm text-fg-muted">暂无浏览器配置</p>
                   <button @click="initDefaultBrowsers" class="btn-secondary text-sm mt-2">自动检测并添加</button>
                 </div>
                 
                 <!-- 添加按钮 -->
-                <button @click="showAddBrowserDialog" class="w-full p-2 rounded-lg border-2 border-dashed border-neutral-300 text-sm text-fg-muted hover:border-primary-400 hover:text-primary-600 transition-colors">
+                <button @click="showAddBrowserDialog" class="w-full p-2 rounded-lg border-2 border-dashed border-surface text-sm text-fg-muted hover:border-primary-400 hover:text-primary-600 transition-colors">
                   + 添加浏览器
                 </button>
               </div>
@@ -605,7 +637,7 @@
               <div class="space-y-2">
                 <!-- 终端列表 -->
                 <div v-for="term in settingsTerminalList" :key="term.id" 
-                     class="p-3 rounded-lg bg-neutral-50 flex items-center justify-between">
+                     class="p-3 rounded-lg bg-surface-input flex items-center justify-between">
                   <div class="flex items-center gap-3 flex-1 min-w-0">
                     <div class="w-8 h-8 rounded-lg bg-success-100 flex items-center justify-center flex-shrink-0">
                       <svg class="w-4 h-4 text-success-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -619,7 +651,7 @@
                   </div>
                   <div class="flex items-center gap-2 flex-shrink-0 ml-2">
                     <button @click="toggleTerminalStatus(term)" 
-                            :class="term.is_enabled ? 'bg-success-100 text-success-700' : 'bg-gray-100 text-gray-500'"
+                            :class="term.is_enabled ? 'bg-success-100 text-success-700' : 'bg-surface-input text-fg-muted'"
                             class="text-xs px-2 py-1 rounded transition-colors">
                       {{ term.is_enabled ? '启用' : '禁用' }}
                     </button>
@@ -631,13 +663,13 @@
                 </div>
                 
                 <!-- 空状态 -->
-                <div v-if="settingsTerminalList.length === 0" class="p-4 rounded-lg bg-neutral-50 text-center">
+                <div v-if="settingsTerminalList.length === 0" class="p-4 rounded-lg bg-surface-input text-center">
                   <p class="text-sm text-fg-muted">暂无命令行工具配置</p>
                   <button @click="initDefaultTerminals" class="btn-secondary text-sm mt-2">自动检测并添加</button>
                 </div>
                 
                 <!-- 添加按钮 -->
-                <button @click="showAddTerminalDialog" class="w-full p-2 rounded-lg border-2 border-dashed border-neutral-300 text-sm text-fg-muted hover:border-primary-400 hover:text-primary-600 transition-colors">
+                <button @click="showAddTerminalDialog" class="w-full p-2 rounded-lg border-2 border-dashed border-surface text-sm text-fg-muted hover:border-primary-400 hover:text-primary-600 transition-colors">
                   + 添加命令行工具
                 </button>
               </div>
@@ -653,14 +685,14 @@
               </h4>
               <div class="space-y-2">
                 <!-- ttyd Status -->
-                <div class="p-3 rounded-lg bg-neutral-50">
+                <div class="p-3 rounded-lg bg-surface-input">
                   <div class="flex items-center justify-between mb-2">
                     <div>
                       <p class="text-sm font-medium text-fg-primary">ttyd 服务</p>
                       <p class="text-xs text-fg-muted">SSH 终端服务</p>
                     </div>
                     <div class="flex items-center gap-2">
-                      <span :class="ttydStatus?.running ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'" 
+                      <span :class="ttydStatus?.running ? 'bg-green-100 text-green-700' : 'bg-surface-input text-fg-secondary'" 
                             class="px-2 py-0.5 rounded text-xs font-medium">
                         {{ ttydStatus?.running ? '运行中' : '已停止' }}
                       </span>
@@ -671,7 +703,7 @@
                       </button>
                     </div>
                   </div>
-                  <div class="p-2 rounded bg-white border border-neutral-200 mb-2">
+                  <div class="p-2 rounded bg-surface-card border border-surface mb-2">
                     <div class="flex items-center gap-2 text-xs">
                       <span class="text-fg-muted whitespace-nowrap">路径 ({{ ttydPathInfo?.source === 'custom' ? '自定义' : ttydPathInfo?.source === 'bundled' ? '内置' : ttydPathInfo?.source === 'system' ? '系统' : '无' }}):</span>
                       <span class="text-fg-primary font-mono truncate flex-1 min-w-0" :title="ttydPathInfo?.path || '未找到'">
@@ -692,7 +724,7 @@
                   <div class="flex items-center justify-between text-xs">
                     <span class="text-fg-muted">端口 7681:</span>
                     <div class="flex items-center gap-2">
-                      <span :class="portCheck?.inUse ? (ttydStatus?.running ? 'text-green-600' : 'text-orange-600') : 'text-gray-500'">
+                      <span :class="portCheck?.inUse ? (ttydStatus?.running ? 'text-green-600' : 'text-orange-600') : 'text-fg-muted'">
                         {{ portCheck?.inUse 
                           ? (ttydStatus?.running ? `ttyd 占用中 (PID: ${ttydStatus.pid})` : `${portCheck.process?.name || '未知'} 占用中 (PID: ${portCheck.process?.pid})`) 
                           : '可用' 
@@ -712,18 +744,18 @@
                 </div>
                 
                 <!-- plink Config (Windows only) -->
-                <div v-if="platformInfo?.isWindows" class="p-3 rounded-lg bg-neutral-50">
+                <div v-if="platformInfo?.isWindows" class="p-3 rounded-lg bg-surface-input">
                   <div class="flex items-center justify-between mb-2">
                     <div>
                       <p class="text-sm font-medium text-fg-primary">plink (PuTTY)</p>
                       <p class="text-xs text-fg-muted">Windows SSH 密码认证</p>
                     </div>
-                    <span :class="plinkPathInfo?.path ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'" 
+                    <span :class="plinkPathInfo?.path ? 'bg-green-100 text-green-700' : 'bg-surface-input text-fg-secondary'" 
                           class="px-2 py-0.5 rounded text-xs font-medium">
                       {{ plinkPathInfo?.path ? '已安装' : '未找到' }}
                     </span>
                   </div>
-                  <div class="p-2 rounded bg-white border border-neutral-200">
+                  <div class="p-2 rounded bg-surface-card border border-surface">
                     <div class="flex items-center gap-2 text-xs">
                       <span class="text-fg-muted whitespace-nowrap">路径 ({{ plinkPathInfo?.source === 'custom' ? '自定义' : plinkPathInfo?.source === 'system' ? '系统' : '无' }}):</span>
                       <span class="text-fg-primary font-mono truncate flex-1 min-w-0" :title="plinkPathInfo?.path || '未找到'">
@@ -744,18 +776,18 @@
                 </div>
                 
                 <!-- sshpass Config (Linux/macOS only) -->
-                <div v-if="!platformInfo?.isWindows" class="p-3 rounded-lg bg-neutral-50">
+                <div v-if="!platformInfo?.isWindows" class="p-3 rounded-lg bg-surface-input">
                   <div class="flex items-center justify-between mb-2">
                     <div>
                       <p class="text-sm font-medium text-fg-primary">sshpass</p>
                       <p class="text-xs text-fg-muted">{{ platformInfo?.isMac ? 'macOS' : 'Linux' }} SSH 密码认证</p>
                     </div>
-                    <span :class="sshpassPathInfo?.path ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'" 
+                    <span :class="sshpassPathInfo?.path ? 'bg-green-100 text-green-700' : 'bg-surface-input text-fg-secondary'" 
                           class="px-2 py-0.5 rounded text-xs font-medium">
                       {{ sshpassPathInfo?.path ? '已安装' : '未找到' }}
                     </span>
                   </div>
-                  <div class="p-2 rounded bg-white border border-neutral-200">
+                  <div class="p-2 rounded bg-surface-card border border-surface">
                     <div class="flex items-center gap-2 text-xs">
                       <span class="text-fg-muted whitespace-nowrap">路径 ({{ sshpassPathInfo?.source === 'custom' ? '自定义' : sshpassPathInfo?.source === 'system' ? '系统' : '无' }}):</span>
                       <span class="text-fg-primary font-mono truncate flex-1 min-w-0" :title="sshpassPathInfo?.path || '未找到'">
@@ -788,7 +820,7 @@
                 </svg>
                 关于
               </h4>
-              <div class="flex items-center gap-3 p-3 rounded-lg bg-neutral-50">
+              <div class="flex items-center gap-3 p-3 rounded-lg bg-surface-input">
                 <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
                   <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -844,7 +876,7 @@
           <div class="flex flex-wrap gap-2">
             <button v-for="browser in detectedBrowsers" :key="browser.path"
                     @click="selectDetectedBrowser(browser)"
-                    class="px-3 py-1.5 text-sm rounded-lg border border-neutral-200 hover:border-primary-400 hover:bg-primary-50 transition-colors">
+                    class="px-3 py-1.5 text-sm rounded-lg border border-surface hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
               {{ browser.name }}
             </button>
           </div>
@@ -855,13 +887,13 @@
           <div>
             <label class="block text-sm font-medium text-fg-secondary mb-1">浏览器名称</label>
             <input v-model="newBrowserName" type="text" placeholder="例如: Google Chrome"
-                   class="w-full px-3 py-2 rounded-lg border border-neutral-300 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
+                   class="w-full px-3 py-2 rounded-lg border border-surface focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
           </div>
           <div>
             <label class="block text-sm font-medium text-fg-secondary mb-1">浏览器路径</label>
             <div class="flex gap-2">
               <input v-model="newBrowserPath" type="text" placeholder="浏览器可执行文件路径"
-                     class="flex-1 px-3 py-2 rounded-lg border border-neutral-300 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
+                     class="flex-1 px-3 py-2 rounded-lg border border-surface focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
               <button @click="selectBrowserPath" class="btn-secondary">选择</button>
             </div>
           </div>
@@ -892,7 +924,7 @@
           <div class="flex flex-wrap gap-2">
             <button v-for="term in detectedTerminals" :key="term.path"
                     @click="selectDetectedTerminal(term)"
-                    class="px-3 py-1.5 text-sm rounded-lg border border-neutral-200 hover:border-primary-400 hover:bg-primary-50 transition-colors">
+                    class="px-3 py-1.5 text-sm rounded-lg border border-surface hover:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
               {{ term.name }}
             </button>
           </div>
@@ -903,13 +935,13 @@
           <div>
             <label class="block text-sm font-medium text-fg-secondary mb-1">终端工具名称</label>
             <input v-model="newTerminalName" type="text" placeholder="例如: Windows Terminal"
-                   class="w-full px-3 py-2 rounded-lg border border-neutral-300 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
+                   class="w-full px-3 py-2 rounded-lg border border-surface focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
           </div>
           <div>
             <label class="block text-sm font-medium text-fg-secondary mb-1">终端工具路径</label>
             <div class="flex gap-2">
               <input v-model="newTerminalPath" type="text" placeholder="终端工具可执行文件路径"
-                     class="flex-1 px-3 py-2 rounded-lg border border-neutral-300 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
+                     class="flex-1 px-3 py-2 rounded-lg border border-surface focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none">
               <button @click="selectTerminalPath" class="btn-secondary">选择</button>
             </div>
           </div>
@@ -961,7 +993,7 @@
         </div>
         
         <!-- Endpoint Info -->
-        <div class="mb-4 p-4 bg-neutral-50 rounded-lg">
+        <div class="mb-4 p-4 bg-surface-input rounded-lg">
           <div class="flex items-center gap-3">
             <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-100 to-primary-50 flex items-center justify-center text-primary-600 font-medium text-lg">
               {{ tokenConfirmData?.endpointIcon || tokenConfirmData?.endpointName?.charAt(0)?.toUpperCase() }}
@@ -1017,6 +1049,8 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useEndpointStore } from '../stores/endpoint'
+import { useThemeStore } from '@/stores/theme'
+import type { ThemeMode } from '@/stores/theme'
 import { loginApi, terminalApi, terminalConfigApi, endpointApi, sshApi, appApi, ttydApi, plinkApi, sshpassApi, platformApi, browserApi, appLockApi, keyRotationApi, secureKeyStorageApi, slotApi, type ChromeInfo, type TerminalTool, type TerminalConfig, type EndpointFull, type Endpoint, type SSHConfig, type TtydStatus, type TtydPathInfo, type PortCheckResult, type PlinkPathInfo, type SshpassPathInfo, type PlatformInfo, type BrowserConfig, type AppLockSettings, type RotationStatus, type TokenStatus } from '../apis'
 import { safeConfirm, messageSuccess, messageError, messageWarning } from '../utils/dialog'
 import UploadModal from '../components/UploadModal.vue'
@@ -1026,6 +1060,11 @@ import TokenResultDialog from '../components/TokenResultDialog.vue'
 
 const router = useRouter()
 const endpointStore = useEndpointStore()
+const themeStore = useThemeStore()
+
+function setTheme(mode: ThemeMode): void {
+  themeStore.setTheme(mode)
+}
 
 const loading = computed(() => endpointStore.loading)
 const endpoints = computed(() => endpointStore.endpoints)

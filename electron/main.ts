@@ -191,11 +191,14 @@ async function backgroundInit() {
         const rootKeyResult = initRootPublicKey()
         if (!rootKeyResult.loaded) {
           logger.error('v1.0 加密方案要求根公钥必须部署，拒绝启动')
+          const searchedPaths = rootKeyResult.searchedPaths?.length
+            ? rootKeyResult.searchedPaths.map((p: string) => `  • ${p}\\root_public.pem`).join('\n')
+            : `  • ${rootKeyResult.path}`
           await showFatalError(
             '根公钥未部署',
             'v1.0 加密方案要求管理员部署根公钥 (root_public.pem) 才能启动应用。\n\n' +
-            '请将 root_public.pem 放入以下目录:\n' +
-            `  ${rootKeyResult.path}\n\n` +
+            '已将 root_public.pem 放入以下任一目录（按搜索顺序）:\n' +
+            `${searchedPaths}\n\n` +
             '根密钥对由管理员在离线环境生成，详见 docs/admin-guide-v1.0.md'
           )
           app.quit()

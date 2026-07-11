@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-neutral-50 text-fg-primary">
+  <div class="min-h-screen bg-surface-page text-fg-primary">
     <router-view />
     <NotificationToast />
     <ConfirmDialog />
@@ -7,8 +7,16 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import NotificationToast from './components/NotificationToast.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
+import { useThemeStore } from './stores/theme'
+
+const themeStore = useThemeStore()
+
+onMounted(() => {
+  themeStore.loadTheme()
+})
 </script>
 
 <style>

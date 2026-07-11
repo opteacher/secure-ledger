@@ -12,7 +12,7 @@
       </div>
       
       <!-- Endpoint Preview -->
-      <div class="card p-3 mb-4 bg-neutral-50">
+      <div class="card p-3 mb-4 bg-surface-input">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-primary-100 to-primary-50 flex items-center justify-center text-primary-600 font-medium">
             {{ endpoint.icon || endpoint.name.charAt(0).toUpperCase() }}
@@ -31,7 +31,7 @@
           <h4 class="text-sm font-medium text-fg-secondary mb-3">使用限制</h4>
           <div class="space-y-3">
             <label class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors" 
-                   :class="restrictionType === 'unlimited' ? 'border-primary-500 bg-primary-50' : 'border-neutral-200 hover:border-neutral-300'">
+                   :class="restrictionType === 'unlimited' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/40' : 'border-surface hover:border-surface'">
               <input type="radio" v-model="restrictionType" value="unlimited" class="mt-1" />
               <div>
                 <div class="font-medium">无限制</div>
@@ -40,7 +40,7 @@
             </label>
             
             <label class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
-                   :class="restrictionType === 'count' ? 'border-primary-500 bg-primary-50' : 'border-neutral-200 hover:border-neutral-300'">
+                   :class="restrictionType === 'count' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/40' : 'border-surface hover:border-surface'">
               <input type="radio" v-model="restrictionType" value="count" class="mt-1" />
               <div class="flex-1">
                 <div class="font-medium">限制次数</div>
@@ -53,7 +53,7 @@
             </label>
             
             <label class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
-                   :class="restrictionType === 'duration' ? 'border-primary-500 bg-primary-50' : 'border-neutral-200 hover:border-neutral-300'">
+                   :class="restrictionType === 'duration' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/40' : 'border-surface hover:border-surface'">
               <input type="radio" v-model="restrictionType" value="duration" class="mt-1" />
               <div class="flex-1">
                 <div class="font-medium">限制时长</div>
@@ -66,7 +66,7 @@
             </label>
             
             <label class="flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
-                   :class="restrictionType === 'datetime' ? 'border-primary-500 bg-primary-50' : 'border-neutral-200 hover:border-neutral-300'">
+                   :class="restrictionType === 'datetime' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/40' : 'border-surface hover:border-surface'">
               <input type="radio" v-model="restrictionType" value="datetime" class="mt-1" />
               <div class="flex-1">
                 <div class="font-medium">截止时间</div>
@@ -84,7 +84,7 @@
           <h4 class="text-sm font-medium text-fg-secondary mb-3">导入限制</h4>
           <div class="space-y-3">
             <div class="p-3 rounded-lg border transition-colors"
-                   :class="hasTargetIp ? 'border-primary-500 bg-primary-50' : 'border-neutral-200 hover:border-neutral-300'">
+                   :class="hasTargetIp ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/40' : 'border-surface hover:border-surface'">
               <label class="flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" v-model="hasTargetIp" class="mt-1" />
                 <div class="flex-1">
@@ -102,7 +102,7 @@
             </div>
             
             <div class="p-3 rounded-lg border transition-colors"
-                   :class="hasImportDeadline ? 'border-primary-500 bg-primary-50' : 'border-neutral-200 hover:border-neutral-300'">
+                   :class="hasImportDeadline ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/40' : 'border-surface hover:border-surface'">
               <label class="flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" v-model="hasImportDeadline" class="mt-1" />
                 <div class="flex-1">
@@ -121,7 +121,7 @@
           </div>
           
           <!-- Local IP Hint -->
-          <div class="mt-4 p-3 bg-neutral-50 rounded-lg text-sm text-fg-muted">
+          <div class="mt-4 p-3 bg-surface-input rounded-lg text-sm text-fg-muted">
             本机IP: {{ localIPs.join(', ') || '未检测到' }}
           </div>
         </div>

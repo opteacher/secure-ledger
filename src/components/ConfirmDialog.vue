@@ -67,7 +67,7 @@ const handleCancel = notificationStore.handleCancel
 }
 
 .confirm-dialog {
-  background: white;
+  background: var(--bg-secondary);
   border-radius: 12px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
               0 10px 10px -5px rgba(0, 0, 0, 0.04);
@@ -111,7 +111,7 @@ const handleCancel = notificationStore.handleCancel
 .confirm-title {
   font-size: 18px;
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.88);
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -121,7 +121,7 @@ const handleCancel = notificationStore.handleCancel
 
 .confirm-message {
   font-size: 14px;
-  color: rgba(0, 0, 0, 0.65);
+  color: var(--text-secondary);
   margin: 0;
   white-space: pre-wrap;
   line-height: 1.6;
@@ -132,8 +132,7 @@ const handleCancel = notificationStore.handleCancel
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 24px;
-  background: #fafafa;
-  border-top: 1px solid #f0f0f0;
+  background: var(--bg-secondary);
 }
 
 .confirm-btn {
@@ -147,9 +146,9 @@ const handleCancel = notificationStore.handleCancel
 }
 
 .confirm-btn-cancel {
-  background: white;
-  border: 1px solid #d9d9d9;
-  color: rgba(0, 0, 0, 0.88);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
 }
 
 .confirm-btn-cancel:hover {
@@ -202,5 +201,10 @@ const handleCancel = notificationStore.handleCancel
 .confirm-leave-to .confirm-dialog {
   transform: scale(0.95);
   opacity: 0;
+}
+
+:global(html.dark) .confirm-dialog {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4),
+              0 10px 10px -5px rgba(0, 0, 0, 0.3);
 }
 </style>

@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{vue,js,ts,jsx,tsx}",
@@ -7,6 +8,13 @@ export default {
   theme: {
     extend: {
       colors: {
+        surface: {
+          page: 'var(--bg-primary)',
+          card: 'var(--bg-secondary)',
+          input: 'var(--bg-tertiary)',
+          DEFAULT: 'var(--border-default)',
+          muted: 'var(--border-muted)',
+        },
         // AI Purple - Primary accent
         primary: {
           50: '#FAF5FF',
@@ -35,13 +43,13 @@ export default {
           900: '#18181B',
           950: '#09090B',
         },
-        // Content/Text colors (fg = foreground)
+        // Content/Text colors (fg = foreground, wired to CSS variables for theming)
         fg: {
-          DEFAULT: '#18181B',
-          primary: '#18181B',
-          secondary: '#52525B',
-          muted: '#A1A1AA',
-          inverse: '#FAFAFA',
+          DEFAULT: 'var(--text-primary)',
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted: 'var(--text-muted)',
+          inverse: 'var(--text-inverse)',
         },
         // Status colors
         success: {

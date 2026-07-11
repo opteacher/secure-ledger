@@ -1,8 +1,8 @@
 <template>
-  <div class="flex h-screen bg-neutral-50">
+  <div class="flex h-screen bg-surface-page">
     <!-- Sidebar - Step Pages -->
-    <aside class="w-64 flex-shrink-0 flex flex-col bg-white border-r border-neutral-200">
-      <div class="p-4 border-b border-neutral-100">
+    <aside class="w-64 flex-shrink-0 flex flex-col bg-surface-card border-r border-surface">
+      <div class="p-4 border-b border-surface">
         <router-link to="/home" class="flex items-center gap-2 text-fg-secondary hover:text-fg-primary transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -21,13 +21,13 @@
             :class="{ active: selectedPageId === page.id }"
             @click="selectPage(page.id)"
           >
-            <span class="w-6 h-6 rounded flex items-center justify-center text-xs font-medium" :class="selectedPageId === page.id ? 'bg-primary-600 text-white' : 'bg-primary-100 text-primary-600'">
+            <span class="w-6 h-6 rounded flex items-center justify-center text-xs font-medium" :class="selectedPageId === page.id ? 'bg-primary-600 text-white' : 'bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-400'">
               {{ index + 1 }}
             </span>
             <span class="truncate text-sm flex-1">{{ page.url || '新步骤' }}</span>
             <button 
               @click.stop="deletePage(page.id)" 
-              class="opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-error-500 transition-all p-1"
+              class="opacity-0 group-hover:opacity-100 text-fg-muted hover:text-error-500 transition-all p-1"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
@@ -45,11 +45,11 @@
     <!-- Main Content -->
     <main class="flex-1 overflow-hidden flex flex-col">
       <!-- Header -->
-      <header class="bg-white/80 backdrop-blur-md border-b border-neutral-200">
+      <header class="bg-surface-card/80 backdrop-blur-md border-b border-surface">
         <div class="px-8 py-3 flex items-center justify-between">
           <input v-model="endpointName" type="text" class="text-lg font-semibold bg-transparent border-none focus:ring-0 p-0 text-fg-primary placeholder:text-fg-muted" placeholder="登录端名称" />
           <div class="flex items-center gap-2">
-            <select v-model="loginType" class="bg-neutral-100 border-neutral-200 text-sm rounded-lg px-3 py-1.5">
+            <select v-model="loginType" class="bg-surface-input border-surface text-sm rounded-lg px-3 py-1.5">
               <option value="web">网页登录</option>
               <option value="ssh">SSH登录</option>
             </select>
@@ -67,7 +67,7 @@
 
       <div v-if="selectedPage" class="flex-1 overflow-hidden flex flex-col">
         <!-- URL Bar -->
-        <div class="px-8 py-3 bg-white border-b border-neutral-200">
+        <div class="px-8 py-3 bg-surface-card border-b border-surface">
           <div class="flex gap-4 items-end">
             <div class="flex-1 input-group mb-0">
               <label class="input-label text-xs">{{ loginType === 'ssh' ? '服务器地址' : '页面URL' }}</label>
@@ -85,16 +85,16 @@
         <!-- Main Editor Area - 3 Panels -->
         <div class="flex-1 flex overflow-hidden">
           <!-- Webview Panel (Center) -->
-          <div v-if="loginType === 'web'" class="flex-1 flex flex-col border-r border-neutral-200 min-w-0">
+          <div v-if="loginType === 'web'" class="flex-1 flex flex-col border-r border-surface min-w-0">
             <!-- Webview Toolbar -->
-            <div class="px-4 py-2 bg-white border-b border-neutral-200 flex items-center gap-2">
-              <button @click="toggleSelecting" class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors" :class="isSelectingElement ? 'bg-primary-100 text-primary-700' : 'bg-neutral-100 text-fg-secondary hover:bg-neutral-200'">
+            <div class="px-4 py-2 bg-surface-card border-b border-surface flex items-center gap-2">
+              <button @click="toggleSelecting" class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors" :class="isSelectingElement ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300' : 'bg-surface-input text-fg-secondary hover:bg-surface-input'">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
                 </svg>
                 {{ isSelectingElement ? '选择中' : '选择元素' }}
               </button>
-              <button @click="showMask = !showMask" class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors" :class="showMask ? 'bg-primary-100 text-primary-700' : 'bg-neutral-100 text-fg-secondary hover:bg-neutral-200'">
+              <button @click="showMask = !showMask" class="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors" :class="showMask ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300' : 'bg-surface-input text-fg-secondary hover:bg-surface-input'">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -103,15 +103,15 @@
               </button>
               <div class="flex-1"></div>
               <div v-if="hoveredElement" class="flex items-center gap-2">
-                <code class="text-xs bg-neutral-100 px-2 py-0.5 rounded truncate max-w-xs">{{ hoveredElement.xpath }}</code>
+                <code class="text-xs bg-surface-input px-2 py-0.5 rounded truncate max-w-xs">{{ hoveredElement.xpath }}</code>
                 <button @click="selectElement(hoveredElement)" class="text-xs text-primary-600 hover:text-primary-700 font-medium">+添加</button>
               </div>
               <div class="text-xs text-fg-muted">元素: {{ pageElements.length }}</div>
             </div>
             
-            <div class="flex-1 relative bg-white">
+            <div class="flex-1 relative bg-surface-card">
               <!-- Loading Overlay -->
-              <div v-if="pageLoading" class="absolute inset-0 bg-white/80 flex items-center justify-center z-10">
+              <div v-if="pageLoading" class="absolute inset-0 bg-surface-card/80 flex items-center justify-center z-10">
                 <div class="flex flex-col items-center gap-2">
                   <div class="typing-indicator"><span></span><span></span><span></span></div>
                   <p class="text-fg-muted text-sm">页面加载中...</p>
@@ -236,16 +236,16 @@
           </div>
 
           <!-- Right Panels Container -->
-          <div v-if="loginType === 'web'" class="flex flex-col bg-white w-[420px] flex-shrink-0">
+          <div v-if="loginType === 'web'" class="flex flex-col bg-surface-card w-[420px] flex-shrink-0">
             <!-- Element Tree Panel (Top) -->
-            <div class="flex-1 flex flex-col border-b border-neutral-200 min-h-0 overflow-hidden">
-              <div class="px-3 py-2 border-b border-neutral-200 flex items-center justify-between bg-neutral-50">
+            <div class="flex-1 flex flex-col border-b border-surface min-h-0 overflow-hidden">
+              <div class="px-3 py-2 border-b border-surface flex items-center justify-between bg-surface-page">
                 <div class="flex items-center gap-2">
                   <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                   </svg>
                   <span class="font-medium text-sm text-fg-primary">元素树</span>
-                  <span v-if="pageElements.length > 0" class="px-1.5 py-0.5 text-xs bg-primary-100 text-primary-700 rounded">{{ pageElements.length }}</span>
+                  <span v-if="pageElements.length > 0" class="px-1.5 py-0.5 text-xs bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded">{{ pageElements.length }}</span>
                 </div>
               </div>
               <div class="flex-1 overflow-auto p-2">
@@ -257,13 +257,13 @@
                     <div 
                       v-for="el in node.elements" 
                       :key="el.xpath"
-                      class="group flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-primary-50 transition-colors"
-                      :class="{ 'bg-primary-100': hoveredElement?.xpath === el.xpath }"
+                      class="group flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors"
+                      :class="{ 'bg-primary-100 dark:bg-primary-900': hoveredElement?.xpath === el.xpath }"
                       @mouseenter="hoveredElement = el"
                       @mouseleave="hoveredElement = null"
                       @dblclick="selectElement(el)"
                     >
-                      <span class="w-5 h-5 rounded bg-neutral-200 flex items-center justify-center text-[10px] text-fg-muted font-mono flex-shrink-0">
+                      <span class="w-5 h-5 rounded bg-surface-input flex items-center justify-center text-[10px] text-fg-muted font-mono flex-shrink-0">
                         {{ node.tagName.charAt(0).toUpperCase() }}
                       </span>
                       <span class="font-mono text-fg-primary truncate">{{ node.tagName }}</span>
@@ -277,17 +277,17 @@
                       </button>
                     </div>
                     <!-- Child nodes -->
-                    <div v-for="child in node.children" :key="child.path" class="ml-3 pl-2 border-l border-neutral-200">
+                    <div v-for="child in node.children" :key="child.path" class="ml-3 pl-2 border-l border-surface">
                       <div
                         v-for="cel in child.elements"
                         :key="cel.xpath"
-                        class="group flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-primary-50 transition-colors"
-                        :class="{ 'bg-primary-100': hoveredElement?.xpath === cel.xpath }"
+class="group flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors"
+                      :class="{ 'bg-primary-100 dark:bg-primary-900': hoveredElement?.xpath === cel.xpath }"
                         @mouseenter="hoveredElement = cel"
                         @mouseleave="hoveredElement = null"
                         @dblclick="selectElement(cel)"
                       >
-                        <span class="w-4 h-4 rounded bg-neutral-200 flex items-center justify-center text-[9px] text-fg-muted font-mono flex-shrink-0">
+                        <span class="w-4 h-4 rounded bg-surface-input flex items-center justify-center text-[9px] text-fg-muted font-mono flex-shrink-0">
                           {{ child.tagName.charAt(0).toUpperCase() }}
                         </span>
                         <span class="font-mono text-fg-primary truncate">{{ child.tagName }}</span>
@@ -308,13 +308,13 @@
 
             <!-- Slots Panel (Bottom) -->
             <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
-              <div class="px-3 py-2 border-b border-neutral-200 flex items-center justify-between bg-neutral-50">
+              <div class="px-3 py-2 border-b border-surface flex items-center justify-between bg-surface-page">
                 <div class="flex items-center gap-2">
                   <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
                   </svg>
                   <span class="font-medium text-sm text-fg-primary">操作步骤</span>
-                  <span v-if="slots.length > 0" class="px-1.5 py-0.5 text-xs bg-primary-100 text-primary-700 rounded">{{ slots.length }}</span>
+                  <span v-if="slots.length > 0" class="px-1.5 py-0.5 text-xs bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded">{{ slots.length }}</span>
                 </div>
                 <button @click="addSlot" class="text-xs text-primary-600 hover:text-primary-700 font-medium">+ 添加</button>
               </div>
@@ -327,27 +327,27 @@
                     v-for="(slot, index) in slots"
                     :key="slot.id"
                     :id="'slot-' + slot.id"
-                    class="py-2 text-xs border-b border-neutral-200 last:border-b-0"
+                    class="py-2 text-xs border-b border-surface last:border-b-0"
                   >
                     <div class="flex items-center gap-2 mb-2">
-                      <span class="w-5 h-5 rounded bg-primary-100 text-primary-700 flex items-center justify-center font-medium">{{ index + 1 }}</span>
-                      <select v-model="slot.action_type" class="flex-1 bg-white border border-neutral-200 rounded px-1.5 py-0.5 text-xs">
+                      <span class="w-5 h-5 rounded bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 flex items-center justify-center font-medium">{{ index + 1 }}</span>
+                      <select v-model="slot.action_type" class="flex-1 bg-surface-card border border-surface rounded px-1.5 py-0.5 text-xs">
                         <option value="input">输入</option>
                         <option value="click">点击</option>
                         <option value="select">选择</option>
                       </select>
-                      <button @click="deleteSlot(slot.id)" class="text-neutral-400 hover:text-error-500">
+                      <button @click="deleteSlot(slot.id)" class="text-fg-muted hover:text-error-500">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
                     <div class="space-y-1">
                       <div class="flex gap-2 items-center">
                         <span class="text-fg-muted w-8 flex-shrink-0">XPath:</span>
-                        <input :id="'xpath-' + slot.id" v-model="slot.element_xpath" type="text" class="flex-1 bg-white border border-neutral-200 rounded px-1.5 py-0.5 font-mono text-[10px]" placeholder="元素路径" />
+                        <input :id="'xpath-' + slot.id" v-model="slot.element_xpath" type="text" class="flex-1 bg-surface-card border border-surface rounded px-1.5 py-0.5 font-mono text-[10px]" placeholder="元素路径" />
                       </div>
                       <div v-if="slot.action_type === 'input'" class="flex gap-2 items-center">
                         <span class="text-fg-muted w-8 flex-shrink-0">值:</span>
-                        <input v-model="slot.value" :type="slot.is_encrypted ? 'password' : 'text'" class="flex-1 bg-white border border-neutral-200 rounded px-1.5 py-0.5" placeholder="输入值" />
+                        <input v-model="slot.value" :type="slot.is_encrypted ? 'password' : 'text'" class="flex-1 bg-surface-card border border-surface rounded px-1.5 py-0.5" placeholder="输入值" />
                       </div>
                       <div class="flex gap-2 items-center">
                         <label class="flex items-center gap-1 text-fg-muted">
@@ -355,7 +355,7 @@
                           加密
                         </label>
                         <span class="text-fg-muted ml-auto">延时:</span>
-                        <input v-model.number="slot.timeout" type="number" class="w-14 bg-white border border-neutral-200 rounded px-1.5 py-0.5" />
+                        <input v-model.number="slot.timeout" type="number" class="w-14 bg-surface-card border border-surface rounded px-1.5 py-0.5" />
                         <span class="text-fg-muted">ms</span>
                       </div>
                     </div>
@@ -368,8 +368,8 @@
           <!-- SSH Panel -->
           <div v-if="loginType === 'ssh'" class="flex-1 flex overflow-hidden">
             <!-- SSH Terminal Webview (Center) -->
-            <div class="flex-1 flex flex-col min-w-0 border-r border-neutral-200">
-              <div class="px-4 py-2 bg-white border-b border-neutral-200 flex items-center gap-2">
+            <div class="flex-1 flex flex-col min-w-0 border-r border-surface">
+              <div class="px-4 py-2 bg-surface-card border-b border-surface flex items-center gap-2">
                 <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
@@ -388,7 +388,7 @@
                   </button>
                 </div>
               </div>
-              <div class="flex-1 relative bg-white">
+              <div class="flex-1 relative bg-surface-card">
                 <!-- Empty State -->
                 <div v-if="!sshWebviewSrc" class="absolute inset-0 flex items-center justify-center">
                   <div class="text-center">
@@ -411,8 +411,8 @@
             </div>
             
             <!-- SSH Auth Panel (Right) -->
-            <div class="w-[420px] flex-shrink-0 bg-white flex flex-col">
-              <div class="px-3 py-2 border-b border-neutral-200 bg-neutral-50 flex items-center gap-2">
+            <div class="w-[420px] flex-shrink-0 bg-surface-card flex flex-col">
+              <div class="px-3 py-2 border-b border-surface bg-surface-page flex items-center gap-2">
                 <svg class="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
                 </svg>
@@ -436,7 +436,7 @@
                   <div>
                     <label class="text-xs text-fg-muted block mb-1">id_rsa 密钥文件 (可选)</label>
                     <div class="flex gap-2">
-                      <input :value="sshConfig.keyfilePath" type="text" class="flex-1 text-sm bg-neutral-100" placeholder="选择密钥文件..." readonly />
+                      <input :value="sshConfig.keyfilePath" type="text" class="flex-1 text-sm bg-surface-input" placeholder="选择密钥文件..." readonly />
                       <button @click="selectKeyfile" class="btn-secondary text-xs px-2">选择</button>
                     </div>
                   </div>
@@ -469,6 +469,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useEndpointStore } from '../stores/endpoint'
 import { pageApi, slotApi, sshApi, type Page, type Slot } from '../apis'
 import { safeConfirm, messageError, messageInfo, messageWarning } from '../utils/dialog'
+import { buildWaitAndActJs, type WebviewActionType } from '../utils/webview-execution'
 
 interface PageElement {
   xpath: string
@@ -934,10 +935,9 @@ async function executePages(fromIndex: number, toIndex: number, executeLastPageS
         for (const slot of pageData.slots) {
           try {
             console.log(`[执行] 页面 ${i + 1} 操作:`, slot.action_type, slot.element_xpath)
-            
+
             if (!webviewRef.value) continue
 
-            // 解密加密的 slot 值
             let slotValue = slot.value
             if (slot.is_encrypted && slotValue) {
               try {
@@ -946,25 +946,24 @@ async function executePages(fromIndex: number, toIndex: number, executeLastPageS
                 console.error('[执行] 解密失败:', e.message)
               }
             }
-            
-            const jsCode = `
-              (function() {
-                const result = document.evaluate('${slot.element_xpath}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-                const element = result.singleNodeValue;
-                if (element) {
-                  ${slot.action_type === 'input' ? `element.value = '${slotValue.replace(/'/g, "\\'")}'; element.dispatchEvent(new Event('input', { bubbles: true }));` : 
-                    slot.action_type === 'click' ? 'element.click();' : 
-                    `element.value = '${slotValue}';`}
-                  return true;
-                }
-                return false;
-              })()
-            `
+
+            const jsCode = buildWaitAndActJs({
+              xpath: slot.element_xpath,
+              actionType: slot.action_type as WebviewActionType,
+              value: slotValue || '',
+            })
             const result = await webviewRef.value.executeJavaScript(jsCode)
-            console.log(`[执行] 操作结果:`, result ? '成功' : '元素未找到')
+            if (result !== true) {
+              messageError('步骤执行失败', `等待元素超时, XPath: ${slot.element_xpath}`)
+              console.error(`[执行] 等待元素超时: ${slot.element_xpath}`)
+              break
+            }
+            console.log(`[执行] 操作结果: 成功`)
             await new Promise(resolve => setTimeout(resolve, slot.timeout || 200))
           } catch (e: any) {
             console.error(`[执行] 操作失败:`, e.message)
+            messageError('步骤执行失败', e.message)
+            break
           }
         }
       }

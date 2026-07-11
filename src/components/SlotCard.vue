@@ -1,8 +1,8 @@
 <template>
-  <div class="rounded-xl border border-neutral-200 bg-neutral-50 overflow-hidden">
+  <div class="rounded-xl border border-surface bg-surface-input overflow-hidden">
     <!-- 卡片头部 - 可点击展开/折叠 -->
     <div 
-      class="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-neutral-100 transition-colors"
+      class="flex items-center gap-2 px-4 py-3 cursor-pointer hover:bg-surface-card transition-colors"
       @click="$emit('toggle')"
     >
       <!-- 折叠/展开箭头 -->
@@ -14,7 +14,7 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
       </svg>
       <!-- 序号 -->
-      <span class="w-6 h-6 rounded bg-primary-100 text-primary-600 flex items-center justify-center text-xs font-medium">
+      <span class="w-6 h-6 rounded bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-400 flex items-center justify-center text-xs font-medium">
         {{ index + 1 }}
       </span>
       <!-- 名称输入框 -->
@@ -29,7 +29,7 @@
       <!-- 删除按钮 -->
       <button 
         @click.stop="$emit('delete')"
-        class="text-neutral-400 hover:text-error-500 transition-colors p-1"
+        class="text-fg-muted hover:text-error-500 transition-colors p-1"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -38,7 +38,7 @@
     </div>
     
     <!-- 卡片内容 - 可折叠 -->
-    <div v-show="!collapsed" class="px-4 pb-4 border-t border-neutral-200">
+    <div v-show="!collapsed" class="px-4 pb-4 border-t border-surface">
       <div class="space-y-3 pt-3">
         <!-- 元素XPath -->
         <div>
@@ -82,7 +82,7 @@
                 :checked="slot.is_encrypted"
                 @change="$emit('update:is_encrypted', ($event.target as HTMLInputElement).checked)"
                 type="checkbox" 
-                class="w-3.5 h-3.5 rounded border-neutral-300 text-primary-600" 
+                class="w-3.5 h-3.5 rounded border-surface text-primary-600" 
               />
               加密
             </label>
