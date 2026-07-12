@@ -63,9 +63,23 @@
             <option value="input">输入</option>
             <option value="click">点击</option>
             <option value="select">选择</option>
+            <option value="captcha">验证码识别</option>
           </select>
         </div>
         
+        <!-- 验证码识别 - 输出变量名 -->
+        <div v-if="slot.action_type === 'captcha'">
+          <label class="text-xs font-medium text-fg-muted block mb-1">输出变量名</label>
+          <input
+            :value="slot.output_key"
+            @input="$emit('update:output_key', ($event.target as HTMLInputElement).value)"
+            type="text"
+            class="w-full text-sm font-mono"
+            placeholder="captcha_result"
+          />
+          <p class="text-xs text-fg-muted mt-1">识别结果可通过 <code class="bg-surface-card px-1 rounded">{<!-- -->{output_key}}</code> 在后续步骤引用</p>
+        </div>
+
         <!-- 输入值 -->
         <div v-if="slot.action_type === 'input'">
           <label class="text-xs font-medium text-fg-muted block mb-1">输入值</label>
@@ -123,5 +137,6 @@ defineEmits<{
   'update:value': [value: string]
   'update:is_encrypted': [value: boolean]
   'update:timeout': [value: number]
+  'update:output_key': [value: string]
 }>()
 </script>

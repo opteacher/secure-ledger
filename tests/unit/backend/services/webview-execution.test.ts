@@ -115,6 +115,27 @@ describe('webview-execution: buildWaitAndActJs', () => {
   })
 })
 
+describe('action_type=captcha', () => {
+  it('生成 console.warn 包含 output_key', () => {
+    const js = buildWaitAndActJs({ xpath: '//img[@id="captcha"]', actionType: 'captcha', value: '', outputKey: 'code' })
+    expect(js).toContain('console.warn')
+    expect(js).toContain('[captcha]')
+    expect(js).toContain('code')
+  })
+
+  it('不包含 element.click / element.value 等操作', () => {
+    const js = buildWaitAndActJs({ xpath: '//img', actionType: 'captcha', value: '' })
+    expect(js).not.toContain('element.click')
+    expect(js).not.toContain('element.value')
+    expect(js).not.toContain('element.focus')
+  })
+
+  it('outputKey 为空字符串时仍生成合法 JS', () => {
+    const js = buildWaitAndActJs({ xpath: '//img', actionType: 'captcha', value: '', outputKey: '' })
+    expect(() => new Function(js)).not.toThrow()
+  })
+})
+
 describe('webview-execution: buildWaitAndActJs XSS 防护', () => {
   it('XPath 含单引号时安全转义 (JSON.stringify 包裹)', () => {
     const xpath = `//input[@value='O'Brien']`

@@ -147,7 +147,54 @@ describe('SlotCard', () => {
 
     const options = wrapper.findAll('option')
     const values = options.map((opt) => (opt.element as HTMLOptionElement).value)
-    expect(values).toEqual(['input', 'click', 'select'])
+    expect(values).toEqual(['input', 'click', 'select', 'captcha'])
+  })
+
+  it('action_type selector has captcha option', () => {
+    const slot = createMockSlot()
+    const wrapper = mount(SlotCard, {
+      props: { slot, index: 0, collapsed: false },
+    })
+
+    const options = wrapper.findAll('option')
+    const captchaOption = options.find((opt) => (opt.element as HTMLOptionElement).value === 'captcha')
+    expect(captchaOption).toBeDefined()
+    expect((captchaOption!.element as HTMLOptionElement).value).toBe('captcha')
+  })
+
+  it('shows output_key input when action_type is captcha', () => {
+    const slot = createMockSlot({ action_type: 'captcha', output_key: 'captcha_result' })
+    const wrapper = mount(SlotCard, {
+      props: { slot, index: 0, collapsed: false },
+    })
+
+    const outputKeyInput = wrapper.find('input[placeholder="captcha_result"]')
+    expect(outputKeyInput.exists()).toBe(true)
+    expect((outputKeyInput.element as HTMLInputElement).value).toBe('captcha_result')
+  })
+
+  it('hides output_key input when action_type is not captcha', () => {
+    const slot = createMockSlot({ action_type: 'input' })
+    const wrapper = mount(SlotCard, {
+      props: { slot, index: 0, collapsed: false },
+    })
+
+    const outputKeyInput = wrapper.find('input[placeholder="captcha_result"]')
+    expect(outputKeyInput.exists()).toBe(false)
+  })
+
+  it('output_key input emits update:output_key on input', async () => {
+    const slot = createMockSlot({ action_type: 'captcha', output_key: 'old_key' })
+    const wrapper = mount(SlotCard, {
+      props: { slot, index: 0, collapsed: false },
+    })
+
+    const outputKeyInput = wrapper.find('input[placeholder="captcha_result"]')
+    await outputKeyInput.setValue('new_key')
+
+    const emitted = wrapper.emitted('update:output_key')
+    expect(emitted).toBeTruthy()
+    expect(emitted![0]).toEqual(['new_key'])
   })
 
   it('collapses content when collapsed is true', () => {

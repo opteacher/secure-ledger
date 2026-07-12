@@ -24,6 +24,7 @@ import * as endpointShareService from '../services/endpointShare'
 import * as tokenReceiverService from '../services/tokenReceiver'
 import * as networkUtils from '../utils/network'
 import * as database from '../database/index'
+import * as captchaService from '../services/captcha'
 
 interface IPCResponse<T = any> {
   success: boolean
@@ -77,6 +78,9 @@ export function registerAllIPCHandlers(): void {
   // 登录执行
   registerHandler('login:execute', handleLoginExecute)
   registerHandler('login:cancel', handleLoginCancel)
+  
+  // 验证码识别
+  registerHandler('captcha:recognize', handleCaptchaRecognize)
   
   // SSH 文件上传
   registerHandler('ssh:upload', handleSSHUpload)
@@ -336,6 +340,13 @@ function handleSlotDecryptValue(data: { encryptedValue: string; pageId?: number 
 // ============ Chrome 检测处理器 ============
 function handleChromeDetect() {
   return chromeService.detectChrome()
+}
+
+// ============ 验证码识别处理器 ============
+async function handleCaptchaRecognize(data: { imageBase64: string }) {
+  const buffer = Buffer.from(data.imageBase64, 'base64')
+  const result = await captchaService.recognize(buffer)
+  return result.text
 }
 
 // ============ 登录执行处理器 ============

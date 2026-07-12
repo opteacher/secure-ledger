@@ -40,6 +40,7 @@
           @update:value="updateSlot(slot.id, 'value', $event)"
           @update:is_encrypted="updateSlot(slot.id, 'is_encrypted', $event)"
           @update:timeout="updateSlot(slot.id, 'timeout', $event)"
+          @update:output_key="updateSlot(slot.id, 'output_key', $event)"
         />
       </div>
     </div>

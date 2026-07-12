@@ -1,7 +1,7 @@
 OVERVIEW
 - UI layer: 9 Vue components for automation slots, picker, dialogs, and endpoint sharing.
 WHERE TO LOOK
-- SlotCard.vue: renders a single automation slot card used inside SlotsPanel.
+- SlotCard.vue: renders a single automation slot card used inside SlotsPanel. Supports captcha action_type for displaying captcha recognition slots.
 - SlotsPanel.vue: container managing multiple SlotCard instances and related actions.
 - ElementTreePanel.vue: DOM element picker used for selecting targets in UI.
 - UploadModal.vue: SSH file upload dialog with progress and cancel options.

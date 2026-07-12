@@ -334,6 +334,14 @@ app.on('will-quit', async () => {
   } catch (e) {
     // Ignore
   }
+  // 关闭 OCR 引擎
+  try {
+    const { shutdownOcr } = await import('./backend/services/captcha')
+    await shutdownOcr()
+    console.log('OCR engine shut down')
+  } catch (e) {
+    // Ignore
+  }
 })
 
 // 应用激活事件 (macOS)

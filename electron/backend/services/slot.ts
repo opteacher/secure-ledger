@@ -10,10 +10,11 @@ interface RawSlot {
   order_index: number
   name?: string
   element_xpath: string
-  action_type: 'input' | 'click' | 'select' | 'password' | 'keyfile'
+  action_type: 'input' | 'click' | 'select' | 'password' | 'keyfile' | 'captcha'
   value: string
   is_encrypted: number  // 数据库中是 INTEGER (0 或 1)
   timeout: number
+  output_key?: string
   created_at: string
   updated_at: string
   username?: string
@@ -134,10 +135,11 @@ export function createSlot(data: {
   order_index?: number
   name?: string
   element_xpath: string
-  action_type: 'input' | 'click' | 'select' | 'password' | 'keyfile'
+  action_type: 'input' | 'click' | 'select' | 'password' | 'keyfile' | 'captcha'
   value: string
   is_encrypted?: boolean
   timeout?: number
+  output_key?: string
 }): Slot {
   // 如果没有指定顺序，放到最后
   if (data.order_index === undefined) {
@@ -155,7 +157,7 @@ export function createSlot(data: {
   }
 
   const result = db.run(
-    `INSERT INTO slot (page_id, order_index, name, element_xpath, action_type, value, is_encrypted, timeout) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO slot (page_id, order_index, name, element_xpath, action_type, value, is_encrypted, timeout, output_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.page_id, 
       data.order_index, 
@@ -164,7 +166,8 @@ export function createSlot(data: {
       data.action_type, 
       finalValue, 
       data.is_encrypted ? 1 : 0, 
-      data.timeout || 200
+      data.timeout || 200,
+      data.output_key || ''
     ]
   )
 
@@ -178,6 +181,7 @@ export function createSlot(data: {
     value: finalValue,
     is_encrypted: data.is_encrypted || false,
     timeout: data.timeout || 200,
+    output_key: data.output_key || '',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   }
@@ -224,6 +228,10 @@ export function updateSlot(id: number, updates: Partial<Slot>): boolean {
   if (updates.timeout !== undefined) {
     fields.push('timeout = ?')
     values.push(updates.timeout)
+  }
+  if (updates.output_key !== undefined) {
+    fields.push('output_key = ?')
+    values.push(updates.output_key)
   }
 
   if (fields.length === 0) return false

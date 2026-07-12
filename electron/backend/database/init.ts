@@ -35,10 +35,11 @@ export interface Slot {
   order_index: number // 操作顺序
   name?: string
   element_xpath: string
-  action_type: 'input' | 'click' | 'select' | 'password' | 'keyfile'
+  action_type: 'input' | 'click' | 'select' | 'password' | 'keyfile' | 'captcha'
   value: string
   is_encrypted: boolean
   timeout: number
+  output_key?: string // 输出变量名，captcha 步骤产出值供后续步骤引用
   created_at: string
   updated_at: string
 }
@@ -85,7 +86,7 @@ export function initTables(): void {
       order_index INTEGER DEFAULT 0,
       name TEXT DEFAULT '',
       element_xpath TEXT NOT NULL,
-      action_type TEXT CHECK(action_type IN ('input', 'click', 'select', 'password', 'keyfile')) DEFAULT 'input',
+      action_type TEXT CHECK(action_type IN ('input', 'click', 'select', 'password', 'keyfile', 'captcha')) DEFAULT 'input',
       value TEXT DEFAULT '',
       is_encrypted INTEGER DEFAULT 0,
       timeout INTEGER DEFAULT 200,
@@ -153,6 +154,9 @@ export function initTables(): void {
   } catch {}
   try {
     run(`ALTER TABLE slot ADD COLUMN passphrase TEXT`)
+  } catch {}
+  try {
+    run(`ALTER TABLE slot ADD COLUMN output_key TEXT DEFAULT ''`)
   } catch {}
   
   // 迁移：terminal 表添加 terminal_type 字段（终端类型标识符）

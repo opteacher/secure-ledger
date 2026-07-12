@@ -25,7 +25,8 @@ const mockPage = {
   evaluateOnNewDocument: vi.fn(() => Promise.resolve()),
   goto: vi.fn(() => Promise.resolve()),
   locator: vi.fn(() => ({ wait: vi.fn(() => Promise.resolve()), fill: vi.fn(() => Promise.resolve()), click: vi.fn(() => Promise.resolve()), select: vi.fn(() => Promise.resolve()) })),
-  waitForXPath: vi.fn(() => Promise.resolve({ click: vi.fn(() => Promise.resolve()), type: vi.fn(() => Promise.resolve()), select: vi.fn(() => Promise.resolve()), evaluate: vi.fn(() => Promise.resolve()) })),
+  waitForXPath: vi.fn(() => Promise.resolve({ click: vi.fn(() => Promise.resolve()), type: vi.fn(() => Promise.resolve()), select: vi.fn(() => Promise.resolve()), evaluate: vi.fn(() => Promise.resolve()), screenshot: vi.fn(() => Promise.resolve(Buffer.from('img'))) })),
+  $: vi.fn(() => Promise.resolve({ screenshot: vi.fn(() => Promise.resolve(Buffer.from('img'))) })),
 }
 
 const mockBrowser = {
@@ -38,6 +39,13 @@ const { mockLaunchBrowser, mockConnectToExistingBrowser, mockAnalyzeBrowserForPu
   mockLaunchBrowser: vi.fn(() => Promise.resolve({ browser: mockBrowser, puppeteerVersion: 'high', versionInfo: { version: '120.0.0.0', majorVersion: 120, path: '/chrome' } })),
   mockConnectToExistingBrowser: vi.fn(() => Promise.resolve({ browser: mockBrowser, puppeteerVersion: 'high', isConnected: true })),
   mockAnalyzeBrowserForPuppeteer: vi.fn(() => ({ versionInfo: { path: '/chrome', version: '120.0.0.0', majorVersion: 120 }, puppeteerVersion: 'high', decision: 'Using high version' })),
+}))
+
+const { mockCaptchaRecognize } = vi.hoisted(() => ({
+  mockCaptchaRecognize: vi.fn(() => Promise.resolve({ text: 'AB12', confidence: 85 })),
+}))
+vi.mock('../../../../electron/backend/services/captcha', () => ({
+  recognize: mockCaptchaRecognize, shutdownOcr: vi.fn(),
 }))
 
 vi.mock('../../../../electron/backend/services/puppeteerManager', () => ({
@@ -109,6 +117,52 @@ describe('automation 服务', () => {
     it('finally 中断开浏览器连接', async () => {
       await executeLogin(1, 'C:\\chrome.exe')
       expect(mockBrowser.disconnect).toHaveBeenCalled()
+    })
+
+    it('captcha slot 调用 captchaService.recognize 并传入截图', async () => {
+      const pageMock = vi.fn(() => Promise.resolve({ screenshot: vi.fn(() => Promise.resolve(Buffer.from('img'))) }))
+      mockPage.$.mockImplementation(pageMock)
+      const captchaEndpoint = {
+        ...mockEndpointData,
+        pages: [{
+          ...mockEndpointData.pages[0],
+          slots: [
+            { id: 10, page_id: 1, order_index: 0, name: 'captcha', element_xpath: '//img[@id="captcha"]', action_type: 'captcha' as const, value: '', is_encrypted: false, timeout: 200, output_key: 'captcha1' },
+          ],
+        }],
+      }
+      mockGetEndpoint.mockReturnValueOnce(captchaEndpoint)
+      mockPage.locator.mockReturnValue({
+        wait: vi.fn(() => Promise.resolve()),
+      })
+      await executeLogin(1, 'C:\\chrome.exe')
+      expect(mockPage.$).toHaveBeenCalled()
+      expect(mockCaptchaRecognize).toHaveBeenCalled()
+    })
+
+    it('captcha output_key 不为空时存入 varStore 并解析 {{key}}', async () => {
+      mockCaptchaRecognize.mockResolvedValueOnce({ text: 'CD34', confidence: 90 })
+      mockPage.$.mockImplementation(() => Promise.resolve({ screenshot: vi.fn(() => Promise.resolve(Buffer.from('img'))) }))
+      const mockFill = vi.fn(() => Promise.resolve())
+      const captchaEndpoint = {
+        ...mockEndpointData,
+        pages: [{
+          ...mockEndpointData.pages[0],
+          slots: [
+            { id: 10, page_id: 1, order_index: 0, name: 'captcha', element_xpath: '//img[@id="c"]', action_type: 'captcha' as const, value: '', is_encrypted: false, timeout: 200, output_key: 'code' },
+            { id: 11, page_id: 1, order_index: 1, name: 'input', element_xpath: '//input[@name="code"]', action_type: 'input' as const, value: '{{code}}', is_encrypted: false, timeout: 200 },
+          ],
+        }],
+      }
+      mockGetEndpoint.mockReturnValueOnce(captchaEndpoint)
+      mockPage.locator.mockReturnValue({
+        wait: vi.fn(() => Promise.resolve()),
+        fill: mockFill,
+      })
+      await executeLogin(1, 'C:\\chrome.exe')
+      expect(mockCaptchaRecognize).toHaveBeenCalled()
+      // The input step should receive the resolved value "CD34" instead of "{{code}}"
+      expect(mockFill).toHaveBeenCalledWith('CD34')
     })
   })
 describe('executeLoginInWebview', () => {
@@ -222,6 +276,23 @@ describe('executeLoginInWebview', () => {
       const origSrc = (mockWebview as any).src
       await executeLoginInWebview(endpoint as any, mockWebview)
       expect((mockWebview as any).src).toBe(origSrc)
+      expect((mockWebview as any).executeJavaScript).toHaveBeenCalledTimes(1)
+    })
+
+    it('captcha slot 在 webview 模式中被跳过 (不调用 executeJavaScript)', async () => {
+      const endpoint = {
+        id: 1, name: 'T', login_type: 'web' as const, share_token: null,
+        pages: [{
+          id: 1, endpoint_id: 1, order_index: 0, url: 'https://x.com',
+          slots: [
+            { id: 10, page_id: 1, order_index: 0, name: 'captcha', element_xpath: '//img', action_type: 'captcha' as const, value: '', is_encrypted: false, timeout: 10, output_key: 'code' },
+            { id: 11, page_id: 1, order_index: 1, name: 'submit', element_xpath: '//button', action_type: 'click' as const, value: '', is_encrypted: false, timeout: 10 },
+          ],
+        }],
+      }
+      const mockWebview = makeMockWebview(true)
+      await executeLoginInWebview(endpoint as any, mockWebview)
+      // Only the click slot should be executed (captcha skipped)
       expect((mockWebview as any).executeJavaScript).toHaveBeenCalledTimes(1)
     })
 

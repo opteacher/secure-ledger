@@ -89,6 +89,18 @@ describe('slot 服务', () => {
     it('自定义 timeout', () => {
       expect(createSlot({ page_id: 10, element_xpath: '//', action_type: 'input', value: 'v', timeout: 5000 }).timeout).toBe(5000)
     })
+    it('创建带 output_key 的操作槽', () => {
+      const r = createSlot({ page_id: 10, element_xpath: '//', action_type: 'captcha', value: '', output_key: 'captcha1' })
+      expect(r.output_key).toBe('captcha1')
+    })
+    it('创建 captcha 类型操作槽', () => {
+      const r = createSlot({ page_id: 10, element_xpath: '//', action_type: 'captcha', value: '' })
+      expect(r.action_type).toBe('captcha')
+    })
+    it('未指定 output_key 时默认为空字符串', () => {
+      const r = createSlot({ page_id: 10, element_xpath: '//', action_type: 'input', value: 'v' })
+      expect(r.output_key).toBe('')
+    })
   })
 
   describe('updateSlot', () => {
@@ -102,6 +114,13 @@ describe('slot 服务', () => {
     })
     it('无变更返回 false', () => {
       expect(updateSlot(1, {})).toBe(false)
+    })
+    it('更新 output_key 包含在 SQL 中', () => {
+      expect(updateSlot(1, { output_key: 'captcha_result' })).toBe(true)
+      expect(mockDb.run).toHaveBeenCalled()
+      const sqlCall = mockDb.run.mock.calls[mockDb.run.mock.calls.length - 1]
+      expect(sqlCall[0]).toContain('output_key')
+      expect(sqlCall[1]).toContain('captcha_result')
     })
   })
 

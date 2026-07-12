@@ -1,5 +1,5 @@
 OVERVIEW
-21 TypeScript services implementing the domain logic for accounts, endpoints, automation, SSH, browser automation, Chromium, key rotation, and token reception.
+22 TypeScript services implementing the domain logic for accounts, endpoints, automation, SSH, browser automation, Chromium, captcha, key rotation, and token reception.
 
 WHERE TO LOOK
 - account.ts: Manages account lifecycle, persistence hooks, and encryption boundaries. Provides create/update/read helpers with strict input validation.
@@ -7,6 +7,7 @@ WHERE TO LOOK
 - automation.ts: Encapsulates automation workflows, orchestration of tasks, and scheduling hooks for reproducible runs.
 - ssh.ts: Manages SSH credential storage, key handling, and session lifecycle with secure storage and retrieval.
 - browser.ts: Provides high-level browser automation orchestration (wrapper around chromium Puppeteer-like APIs) and clean error translation.
+- captcha.ts: Tesseract.js OCR service for captcha image recognition. Uses sharp preprocessing (greyscale, normalize, 4x resize, sharpen, contrast boost). Singleton worker with Electron v5 fallback for local langPath. Pure offline, no network.
 - chromium.ts: Configures and manages Chromium runtime, headless modes, and environment controls used by other services.
 - keyRotation.ts: Implements cryptographic key rotation policies, re-encrypting stored data and updating references safely.
 - tokenReceiver.ts: Accepts and validates tokens granted to accounts/endpoints, persists them, and emits appropriate events.

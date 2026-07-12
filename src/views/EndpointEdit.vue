@@ -335,6 +335,7 @@ class="group flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-p
                         <option value="input">输入</option>
                         <option value="click">点击</option>
                         <option value="select">选择</option>
+                        <option value="captcha">验证码识别</option>
                       </select>
                       <button @click="deleteSlot(slot.id)" class="text-fg-muted hover:text-error-500">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -348,6 +349,11 @@ class="group flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-p
                       <div v-if="slot.action_type === 'input'" class="flex gap-2 items-center">
                         <span class="text-fg-muted w-8 flex-shrink-0">值:</span>
                         <input v-model="slot.value" :type="slot.is_encrypted ? 'password' : 'text'" class="flex-1 bg-surface-card border border-surface rounded px-1.5 py-0.5" placeholder="输入值" />
+                      </div>
+                      <div v-else-if="slot.action_type === 'captcha'" class="flex gap-2 items-center">
+                        <span class="text-fg-muted w-8 flex-shrink-0">输出:</span>
+                        <input v-model="slot.output_key" type="text" class="flex-1 bg-surface-card border border-surface rounded px-1.5 py-0.5 font-mono" placeholder="captcha_result" />
+                        <span class="text-fg-muted text-[10px]">后续用 <code>{<!-- -->{<!-- -->key}}</code> 引用</span>
                       </div>
                       <div class="flex gap-2 items-center">
                         <label class="flex items-center gap-1 text-fg-muted">
@@ -933,6 +939,11 @@ async function executePages(fromIndex: number, toIndex: number, executeLastPageS
       
       if (i < toIndex || executeLastPageSlots) {
         for (const slot of pageData.slots) {
+          if (slot.action_type === 'captcha') {
+            console.warn(`[执行] 验证码识别 (output_key=${slot.output_key || ''}) 在 webview 预览中不支持，将在 Puppeteer 执行时自动识别`)
+            continue
+          }
+
           try {
             console.log(`[执行] 页面 ${i + 1} 操作:`, slot.action_type, slot.element_xpath)
 
@@ -951,6 +962,7 @@ async function executePages(fromIndex: number, toIndex: number, executeLastPageS
               xpath: slot.element_xpath,
               actionType: slot.action_type as WebviewActionType,
               value: slotValue || '',
+              outputKey: slot.output_key,
             })
             const result = await webviewRef.value.executeJavaScript(jsCode)
             if (result !== true) {
@@ -1079,7 +1091,8 @@ function selectElement(element: PageElement) {
     action_type: 'input', 
     value: '', 
     is_encrypted: false, 
-    timeout: 200, 
+    timeout: 200,
+    output_key: '',
     created_at: new Date().toISOString(), 
     updated_at: new Date().toISOString() 
   })
@@ -1218,7 +1231,8 @@ async function handleSave() {
             action_type: slot.action_type, 
             value: slot.value, 
             is_encrypted: slot.is_encrypted, 
-            timeout: slot.timeout
+            timeout: slot.timeout,
+            output_key: slot.output_key
           })
         }
         router.push('/home')
@@ -1235,7 +1249,8 @@ async function handleSave() {
             action_type: slot.action_type, 
             value: slot.value, 
             is_encrypted: slot.is_encrypted, 
-            timeout: slot.timeout
+            timeout: slot.timeout,
+            output_key: slot.output_key
           })
         } else {
           await pageApi.update(page.id, { url: page.url })

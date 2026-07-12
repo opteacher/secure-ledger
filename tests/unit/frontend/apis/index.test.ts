@@ -15,6 +15,7 @@ import {
   slotApi,
   chromeApi,
   loginApi,
+  captchaApi,
   sshApi,
   terminalApi,
   appApi,
@@ -242,6 +243,21 @@ describe('loginApi', () => {
   it('cancel calls login:cancel with no args', async () => {
     await loginApi.cancel()
     expect(mockInvoke).toHaveBeenCalledWith('login:cancel')
+  })
+})
+
+// ==========================================================================
+// captchaApi
+// ==========================================================================
+describe('captchaApi', () => {
+  it('recognize calls captcha:recognize with {imageBase64}', async () => {
+    await captchaApi.recognize('base64data')
+    expect(mockInvoke).toHaveBeenCalledWith('captcha:recognize', { imageBase64: 'base64data' })
+  })
+
+  it('captchaApi is exported and has recognize method', () => {
+    expect(captchaApi).toBeDefined()
+    expect(typeof captchaApi.recognize).toBe('function')
   })
 })
 

@@ -6,6 +6,8 @@ import { decryptSlotValue } from './slot'
 import * as endpointShare from './endpointShare'
 import type { EndpointFull } from './endpoint'
 import { buildWaitAndActJs, ELEMENT_WAIT_TIMEOUT_MS, type WebviewActionType } from './webview-execution'
+import * as captchaService from './captcha'
+import { createVarStore, resolveTemplateVars } from './templateVars'
 
 // 延时函数
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
@@ -132,6 +134,8 @@ export async function executeLogin(
     const pages = await browser.pages()
 
     const failedXpaths: string[] = []
+    // 模板变量存储（用于 captcha 输出 → 后续步骤引用）
+    const varStore = createVarStore()
     
     // 使用现有实例时，始终创建新标签页；新启动的实例使用第一个页面
     let page: any
@@ -188,6 +192,8 @@ export async function executeLogin(
               }
               value = decryptSlotValue(value, slot.page_id)
             }
+            // 解析模板变量引用 {{key}}
+            value = resolveTemplateVars(value, varStore)
             
             // 执行操作
             switch (slot.action_type) {
@@ -206,6 +212,19 @@ export async function executeLogin(
               case 'select':
                 await locator.select({ value })
                 console.log('[Automation] Select completed (encrypted:', slot.is_encrypted, ')')
+                break
+              case 'captcha':
+                // Wait for element, screenshot, OCR
+                await locator.wait({ timeout: PUPPETEER_ELEMENT_WAIT_TIMEOUT_MS })
+                const captchaHandle = await page.$(`xpath/${slot.element_xpath}`)
+                if (captchaHandle) {
+                  const imgBuffer = await captchaHandle.screenshot()
+                  const captchaResult = await captchaService.recognize(imgBuffer)
+                  if (slot.output_key) {
+                    varStore.set(slot.output_key, captchaResult.text)
+                  }
+                  console.log('[Automation] Captcha recognized: "' + captchaResult.text + '" output_key=' + (slot.output_key || ''))
+                }
                 break
             }
           } else {
@@ -230,6 +249,8 @@ export async function executeLogin(
               }
               value = decryptSlotValue(value, slot.page_id)
             }
+            // 解析模板变量引用 {{key}}
+            value = resolveTemplateVars(value, varStore)
             
             // 执行操作（使用 ElementHandle API）
             switch (slot.action_type) {
@@ -248,6 +269,14 @@ export async function executeLogin(
               case 'select':
                 await element.select(value)
                 console.log('[Automation] Select completed (encrypted:', slot.is_encrypted, ')')
+                break
+              case 'captcha':
+                const imgBuffer = await element.screenshot()
+                const captchaResult = await captchaService.recognize(imgBuffer)
+                if (slot.output_key) {
+                  varStore.set(slot.output_key, captchaResult.text)
+                }
+                console.log('[Automation] Captcha recognized: "' + captchaResult.text + '" output_key=' + (slot.output_key || ''))
                 break
             }
           }
@@ -319,6 +348,12 @@ export async function executeLoginInWebview(endpoint: EndpointFull, webview: Ele
     }
 
     for (const slot of pageData.slots) {
+      // Captcha not supported in webview preview mode — skip with log
+      if (slot.action_type === 'captcha') {
+        console.warn('[Automation:webview] Captcha step skipped in webview mode, output_key=' + (slot.output_key || ''))
+        continue
+      }
+
       const actionType = slot.action_type as WebviewActionType
 
       const isEncrypted = slot.is_encrypted && slot.value
@@ -331,6 +366,7 @@ export async function executeLoginInWebview(endpoint: EndpointFull, webview: Ele
         xpath: slot.element_xpath,
         actionType,
         value,
+        outputKey: slot.output_key,
       })
 
       const ok = await webview.executeJavaScript(jsCode)

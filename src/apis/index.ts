@@ -39,10 +39,11 @@ export interface Slot {
   order_index: number
   name?: string
   element_xpath: string
-  action_type: 'input' | 'click' | 'select' | 'password' | 'keyfile'
+  action_type: 'input' | 'click' | 'select' | 'password' | 'keyfile' | 'captcha'
   value: string
   is_encrypted: boolean
   timeout: number
+  output_key?: string
   created_at: string
   updated_at: string
 }
@@ -161,6 +162,13 @@ export const loginApi = {
   
   cancel: () =>
     invoke<void>('login:cancel')
+}
+
+// ============ 验证码识别 API ============
+export const captchaApi = {
+  // 识别验证码图片（base64 → text）
+  recognize: (imageBase64: string) =>
+    invoke<string>('captcha:recognize', { imageBase64 }),
 }
 
 // ============ SSH API ============

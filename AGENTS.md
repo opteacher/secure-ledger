@@ -16,7 +16,8 @@ secure-ledger/
 │   ├── main.ts               # Electron entry - window lifecycle, IPC init
 │   ├── preload.ts            # ContextBridge IPC API exposure
 │   └── backend/
-│       ├── services/         # 21 business services (account, automation, ssh...)
+│       ├── services/         # 22 business services (account, automation, captcha, ssh...)
+│       │                     # captcha.ts: OCR-based captcha recognition using Tesseract.js + sharp preprocessing. Singleton worker, lazy init. Pure local, no network.
 │       ├── crypto/           # RSA/hybrid encryption, key storage
 │       ├── ipc/              # 756-line IPC handler registry
 │       └── database/         # sql.js SQLite wrapper
@@ -45,6 +46,8 @@ secure-ledger/
 | Add Vue component | `src/components/` | Tailwind styling, no scoped CSS |
 | Add page view | `src/views/` | Router entry in `src/router/index.ts` |
 | Database schema change | `electron/backend/database/init.ts` | Add migration in `initTables()` |
+| Add captcha recognition | `electron/backend/services/captcha.ts` | Uses Tesseract.js + sharp |
+| Resolve template variables | `electron/backend/services/templateVars.ts` | `{{key}}` substitution in slot values |
 
 ## CONVENTIONS
 
@@ -54,6 +57,16 @@ secure-ledger/
 - **Styling**: TailwindCSS, primary-500 accent, neutral-900 dark
 - **Formatting**: Prettier - single quotes, no semicolons, 100 char width, LF
 - **TypeScript**: Strict mode, ES2020, bundler resolution, `@/*` alias for `src/`
+- **Template Variables**: `{{output_key}}` syntax in slot values references captcha recognition outputs from previous steps. Resolved at execution time via `templateVars.resolveTemplateVars()`.
+
+## CAPTCHA RECOGNITION
+
+- **action_type**: `'captcha'` — new automation step type
+- **output_key**: slot field storing variable name for captcha output
+- **Dependencies**: `tesseract.js` (OCR), `sharp` (image preproc)
+- **Tessdata**: bundled at `resources/tessdata/eng.traineddata`, shipped via electron-builder `extraResources`
+- **Execution**: Puppeteer mode only (screenshots element → OCR → stores in varStore). Webview preview skips captcha steps.
+- **Variable syntax**: `{{variable_name}}` in subsequent input step values (resolved by `templateVars.ts`)
 
 ## ANTI-PATTERNS
 

@@ -1,5 +1,5 @@
 /**
- * IPC 处理器注册测试 - 验证全部 106 个频道正确注册
+ * IPC 处理器注册测试 - 验证全部 107 个频道正确注册
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -38,6 +38,7 @@ vi.mock('../../../../electron/backend/services/appLock', () => ({
 }))
 vi.mock('../../../../electron/backend/services/browserInstance', () => ({ checkBrowserInstance: vi.fn() }))
 vi.mock('../../../../electron/backend/services/keyRotation', () => ({ rotateKeys: vi.fn(), getRotationStatus: vi.fn(), startScheduledRotation: vi.fn(), stopScheduledRotation: vi.fn() }))
+vi.mock('../../../../electron/backend/services/captcha', () => ({ recognize: vi.fn(), shutdownOcr: vi.fn() }))
 vi.mock('../../../../electron/backend/crypto/secureKeyStorage', () => ({ isEncryptionAvailable: vi.fn(), generateKeys: vi.fn(), loadKeys: vi.fn(), getStatus: vi.fn(), deleteKeys: vi.fn() }))
 vi.mock('../../../../electron/backend/services/endpointShare', () => ({
   generateShareToken: vi.fn(), importEndpointFromToken: vi.fn(), checkTokenPermission: vi.fn(),
@@ -90,9 +91,10 @@ const ALL_EXPECTED_CHANNELS: string[] = [
   'secureKeyStorage:isEncryptionAvailable',
   'tokenReceiver:start', 'tokenReceiver:stop', 'tokenReceiver:status',
   'network:getLocalIPs',
+  'captcha:recognize',
 ]
 
-const EXPECTED_COUNT = 106
+const EXPECTED_COUNT = 107
 
 describe('registerAllIPCHandlers', () => {
   beforeEach(async () => {
@@ -100,7 +102,7 @@ describe('registerAllIPCHandlers', () => {
     vi.resetModules()
   })
 
-  it('应有 106 个频道总数', () => { expect(ALL_EXPECTED_CHANNELS.length).toBe(EXPECTED_COUNT) })
+  it('应有 107 个频道总数', () => { expect(ALL_EXPECTED_CHANNELS.length).toBe(EXPECTED_COUNT) })
 
   it('每个预期频道都应被注册', async () => {
     const { registerAllIPCHandlers } = await import('../../../../electron/backend/ipc/index')
@@ -122,7 +124,7 @@ describe('registerAllIPCHandlers', () => {
     for (const call of mockIpcMain.handle.mock.calls) expect(typeof call[1]).toBe('function')
   })
 
-  it('恰好 106 个 handler', async () => {
+  it('恰好 107 个 handler', async () => {
     const { registerAllIPCHandlers } = await import('../../../../electron/backend/ipc/index')
     registerAllIPCHandlers()
     expect(mockIpcMain.handle).toHaveBeenCalledTimes(EXPECTED_COUNT)
@@ -180,5 +182,20 @@ describe('registerAllIPCHandlers', () => {
     const { registerAllIPCHandlers } = await import('../../../../electron/backend/ipc/index')
     registerAllIPCHandlers()
     expect(mockIpcMain.handle.mock.calls.map((c: any[]) => c[0]).filter((c: string) => c.startsWith('appLock:')).length).toBe(9)
+  })
+  it('captcha: 1', async () => {
+    const { registerAllIPCHandlers } = await import('../../../../electron/backend/ipc/index')
+    registerAllIPCHandlers()
+    expect(mockIpcMain.handle.mock.calls.map((c: any[]) => c[0]).filter((c: string) => c.startsWith('captcha:')).length).toBe(1)
+  })
+  it('captcha:recognize handler 调用 captchaService.recognize', async () => {
+    const { recognize } = await import('../../../../electron/backend/services/captcha')
+    ;(recognize as any).mockResolvedValueOnce({ text: 'ABC', confidence: 90 })
+    const { registerAllIPCHandlers } = await import('../../../../electron/backend/ipc/index')
+    registerAllIPCHandlers()
+    const call = mockIpcMain.handle.mock.calls.find((c: any[]) => c[0] === 'captcha:recognize')
+    const result = await call[1]({}, { imageBase64: Buffer.from('test-img').toString('base64') })
+    expect(result.success).toBe(true)
+    expect(result.data).toBe('ABC')
   })
 })

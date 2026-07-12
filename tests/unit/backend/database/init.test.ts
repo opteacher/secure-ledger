@@ -238,6 +238,7 @@ describe('表初始化与迁移 (database/init)', () => {
       expect(cols.has('username')).toBe(true)
       expect(cols.has('keyfile')).toBe(true)
       expect(cols.has('passphrase')).toBe(true)
+      expect(cols.has('output_key')).toBe(true)
       expect(cols.has('created_at')).toBe(true)
       expect(cols.has('updated_at')).toBe(true)
     })
@@ -253,6 +254,7 @@ describe('表初始化与迁移 (database/init)', () => {
       // 有效值
       database.run('INSERT INTO slot (page_id, element_xpath, action_type) VALUES (?, ?, ?)', [pageId, '/xpath', 'input'])
       database.run('INSERT INTO slot (page_id, element_xpath, action_type) VALUES (?, ?, ?)', [pageId, '/xpath', 'click'])
+      database.run('INSERT INTO slot (page_id, element_xpath, action_type) VALUES (?, ?, ?)', [pageId, '/xpath', 'captcha'])
       // 无效值
       expect(() =>
         database.run('INSERT INTO slot (page_id, element_xpath, action_type) VALUES (?, ?, ?)', [pageId, '/xpath', 'hover'])

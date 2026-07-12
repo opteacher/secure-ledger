@@ -41,10 +41,11 @@ interface SlotInToken {
   order_index: number
   name: string
   element_xpath: string
-  action_type: 'input' | 'click' | 'select' | 'password' | 'keyfile'
+  action_type: 'input' | 'click' | 'select' | 'password' | 'keyfile' | 'captcha'
   value: string       // 用对称密钥加密的值（明文已加密）
   is_encrypted: boolean
   timeout: number
+  output_key?: string
 }
 
 // Page with slots for token payload
@@ -189,7 +190,8 @@ export async function generateShareToken(
         action_type: slot.action_type,
         value: encryptedValue,
         is_encrypted: slot.is_encrypted,
-        timeout: slot.timeout
+        timeout: slot.timeout,
+        output_key: slot.output_key || '',
       })
     }
     
@@ -602,6 +604,7 @@ export function decodeTokenPages(token: string): (Page & { slots: Slot[] })[] | 
           value: value,
           is_encrypted: false, // 解密后标记为未加密
           timeout: slotData.timeout,
+          output_key: slotData.output_key || '',
           created_at: '',
           updated_at: ''
         } as Slot

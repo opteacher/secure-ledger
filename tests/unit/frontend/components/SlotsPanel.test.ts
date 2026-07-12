@@ -146,6 +146,19 @@ describe('SlotsPanel', () => {
     expect(wrapper.emitted('update')![0]).toEqual([slots[0].id, 'value', 'new-value'])
   })
 
+  it('emits update when SlotCard emits update:output_key', async () => {
+    const slots = createMockSlots(1)
+    const wrapper = mount(SlotsPanel, {
+      props: { slots },
+    })
+
+    const slotCards = wrapper.findAllComponents({ name: 'SlotCard' })
+    await slotCards[0].vm.$emit('update:output_key', 'captcha_result')
+
+    expect(wrapper.emitted('update')).toBeTruthy()
+    expect(wrapper.emitted('update')![0]).toEqual([slots[0].id, 'output_key', 'captcha_result'])
+  })
+
   it('emits update when SlotCard emits update:timeout', async () => {
     const slots = createMockSlots(1)
     const wrapper = mount(SlotsPanel, {

@@ -5,7 +5,7 @@
 ## 功能特性
 
 - 🔐 **本地加密存储** - 所有敏感数据使用 AES-256 加密，密钥派生使用 PBKDF2
-- 🚀 **自动化登录** - 支持网页自动化登录，预定义操作步骤
+- 🚀 **自动化登录** - 支持网页自动化登录，预定义操作步骤，包括验证码识别
 - 💻 **SSH 连接** - 支持 SSH 终端登录管理
 - 📱 **多端点管理** - 可管理多个登录系统的凭证
 - 🎨 **现代化界面** - 基于 Vue 3 + TailwindCSS 的响应式设计
@@ -143,6 +143,7 @@ secure-ledger/
 | element_xpath | TEXT | 元素 XPath |
 | action_type | TEXT | 操作类型 (input/click/select) |
 | value | TEXT | 值 (加密存储) |
+| output_key | TEXT | 输出变量名（验证码识别等生产值步骤使用） |
 | is_encrypted | INTEGER | 是否加密 |
 
 ## 测试用户

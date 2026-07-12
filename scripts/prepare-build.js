@@ -188,5 +188,32 @@ function validateRootKeys() {
 
 validateRootKeys()
 
+// ─── 验证 Tesseract 语言数据 ────────────────────────────
+function validateTessdata() {
+  const tessdataDir = path.join(PROJECT_ROOT, 'resources', 'tessdata')
+  const traineddataPath = path.join(tessdataDir, 'eng.traineddata')
+
+  console.log('\n========================================')
+  console.log('验证 Tesseract 语言数据')
+  console.log('========================================')
+
+  if (!fs.existsSync(traineddataPath)) {
+    console.error('错误: Tesseract 语言数据不存在!')
+    console.error(`  路径: ${traineddataPath}`)
+    console.error('')
+    console.error('请下载 eng.traineddata (~18MB):')
+    console.error('  curl -L -o "' + traineddataPath + '" https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata')
+    console.error('  # 或运行: npx tsx scripts/download-tessdata.ts')
+    console.error('')
+    process.exit(1)
+  }
+
+  const sizeMB = (fs.statSync(traineddataPath).size / 1024 / 1024).toFixed(2)
+  console.log(`  ✓ eng.traineddata (${sizeMB} MB)`)
+  console.log('========================================\n')
+}
+
+validateTessdata()
+
 // 执行准备
 prepareChromium(targetPlatform, targetArch, useLegacy)

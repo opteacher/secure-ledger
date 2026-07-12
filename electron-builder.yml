@@ -11,6 +11,11 @@
     "public/**/*"
   ],
   "asar": true,
+  "asarUnpack": [
+    "node_modules/sharp/**",
+    "node_modules/@img/**",
+    "node_modules/tesseract.js-core/**/*.wasm"
+  ],
   "npmRebuild": false,
   "win": {
     "target": [
@@ -81,6 +86,10 @@
     {
       "from": "node_modules/sql.js/dist/sql-wasm.wasm",
       "to": "sql-wasm.wasm"
+    },
+    {
+      "from": "resources/tessdata",
+      "to": "tessdata"
     }
   ]
 }

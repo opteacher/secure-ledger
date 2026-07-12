@@ -20,12 +20,13 @@ export const ELEMENT_WAIT_TIMEOUT_MS = 30000
 /** 轮询间隔 (毫秒) */
 export const POLL_INTERVAL_MS = 200
 
-export type WebviewActionType = 'input' | 'click' | 'select'
+export type WebviewActionType = 'input' | 'click' | 'select' | 'captcha'
 
 export interface WebviewSlotAction {
   xpath: string
   actionType: WebviewActionType
   value: string
+  outputKey?: string
 }
 
 /**
@@ -69,6 +70,11 @@ export function buildWaitAndActJs(
       actJs = `
         element.value = ${valueJson};
         element.dispatchEvent(new Event('change', { bubbles: true }));
+      `
+      break
+    case 'captcha':
+      actJs = `
+        console.warn('[captcha] Skipped in webview preview, output_key=' + ${JSON.stringify(action.outputKey || '')});
       `
       break
     default:
