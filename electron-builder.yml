@@ -90,6 +90,14 @@
     {
       "from": "resources/tessdata",
       "to": "tessdata"
+    },
+    {
+      "from": "resources/python",
+      "to": "python"
+    },
+    {
+      "from": "resources/python-runtime",
+      "to": "python-runtime"
     }
   ]
 }

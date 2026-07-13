@@ -46,7 +46,11 @@ secure-ledger/
 | Add Vue component | `src/components/` | Tailwind styling, no scoped CSS |
 | Add page view | `src/views/` | Router entry in `src/router/index.ts` |
 | Database schema change | `electron/backend/database/init.ts` | Add migration in `initTables()` |
-| Add captcha recognition | `electron/backend/services/captcha.ts` | Uses Tesseract.js + sharp |
+| Add captcha recognition | `electron/backend/services/captcha.ts` | Uses Tesseract.js + sharp + optional muggle_ocr |
+| Resolve template variables | `electron/backend/services/templateVars.ts` | `{{key}}` substitution in slot values |
+| Change OCR method | `electron/backend/services/ocrConfig.ts` | `system_config` key `ocr_method` |
+| Setup portable Python | `scripts/setup-python-runtime.js` | Downloads & installs muggle_ocr runtime |
+| muggle_ocr offline setup | `docs/muggle-ocr-setup.md` | 内网部署完整指南 |
 | Resolve template variables | `electron/backend/services/templateVars.ts` | `{{key}}` substitution in slot values |
 
 ## CONVENTIONS
@@ -61,12 +65,36 @@ secure-ledger/
 
 ## CAPTCHA RECOGNITION
 
-- **action_type**: `'captcha'` — new automation step type
+- **action_type**: `'captcha'` — automation step type for captcha recognition
 - **output_key**: slot field storing variable name for captcha output
-- **Dependencies**: `tesseract.js` (OCR), `sharp` (image preproc)
+- **Dependencies**: `tesseract.js` (OCR), `sharp` (image preproc), `muggle_ocr` (optional Python ML)
 - **Tessdata**: bundled at `resources/tessdata/eng.traineddata`, shipped via electron-builder `extraResources`
 - **Execution**: Puppeteer mode only (screenshots element → OCR → stores in varStore). Webview preview skips captcha steps.
 - **Variable syntax**: `{{variable_name}}` in subsequent input step values (resolved by `templateVars.ts`)
+
+### OCR Engines
+
+| Engine | Type | Accuracy | Requirements |
+|--------|------|----------|-------------|
+| **Tesseract.js** | Local WASM OCR | Medium (60-90%) | None (bundled) |
+| **muggle_ocr** | Python ML | High (85%+) | Portable Python runtime (bundled) or system Python 3 + muggle_ocr |
+
+Switch in **Settings → General → 验证码识别方案**. Falls back to Tesseract if muggle_ocr unavailable.
+
+### Configuration
+
+- **Storage**: `system_config` table, key `ocr_method` (`'tesseract'` | `'muggle'`)
+- **Service**: `electron/backend/services/ocrConfig.ts` — `getOcrMethod()`, `setOcrMethod()`
+- **IPC**: `captcha:getConfig`, `captcha:setConfig`
+- **Python script**: `resources/python/muggleOCR.py` — muggle_ocr bridge
+
+### Portable Python Runtime (内网部署)
+
+- **Bundle**: `resources/python-runtime/` — embeddable Python 3.10 + muggle_ocr + TensorFlow
+- **Setup**: `scripts/setup-python-runtime.js` — automated download & install
+- **Manual setup**: Download embeddable Python 3.10 → enable pip → clone [litongjava/muggle_ocr](https://github.com/litongjava/muggle_ocr) → `pip install` deps
+- **Packaging**: `electron-builder.yml` includes `resources/python-runtime → python-runtime` for production builds
+- **Detection**: `ocrConfig.getBundledPythonPath()` checks bundled Python first, falls back to system Python
 
 ## ANTI-PATTERNS
 
@@ -92,6 +120,10 @@ npm run build:win     # Build Windows installer
 npm run build:linux   # Build Linux deb/tar.gz
 npm run type-check    # TypeScript validation
 npm run create-test-user  # Create test accounts (test/admin/demo)
+npm run mock-server   # Start mock login website (http://localhost:3456)
+npm run mock-register # Register mock endpoint in database
+npm run test          # Run all unit tests
+npm run setup-python   # Setup portable Python runtime for muggle_ocr
 ```
 
 ## NOTES

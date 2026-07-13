@@ -334,8 +334,11 @@ export async function executeLogin(
 // 在 Webview 中执行登录（用于内置预览）
 export async function executeLoginInWebview(endpoint: EndpointFull, webview: Electron.WebviewTag): Promise<void> {
   const failedXpaths: string[] = []
+  const varStore = createVarStore()
 
   for (const pageData of endpoint.pages) {
+    console.log('[Automation:webview] Page: url=' + (pageData.url || '(none)') + ', slots=' + pageData.slots.length)
+
     if (pageData.url) {
       webview.src = pageData.url
       await new Promise<void>(resolve => {
@@ -345,23 +348,60 @@ export async function executeLoginInWebview(endpoint: EndpointFull, webview: Ele
         }
         webview.addEventListener('did-finish-load', handler)
       })
+      console.log('[Automation:webview] Page loaded: ' + pageData.url)
     }
 
     for (const slot of pageData.slots) {
-      // Captcha not supported in webview preview mode — skip with log
+      // ========== captcha ==========
       if (slot.action_type === 'captcha') {
-        console.warn('[Automation:webview] Captcha step skipped in webview mode, output_key=' + (slot.output_key || ''))
+        console.log('[Automation:webview] Captcha: xpath=' + slot.element_xpath + ', output_key=' + (slot.output_key || '(none)'))
+        try {
+          const rectResult: any = await webview.executeJavaScript(`
+            (() => {
+              const el = document.evaluate('${slot.element_xpath.replace(/'/g, "\\'")}', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
+              if (!el) return null
+              const r = el.getBoundingClientRect()
+              return { x: r.left, y: r.top, width: r.width, height: r.height }
+            })()
+          `)
+          console.log('[Automation:webview] Captcha element rect: ' + JSON.stringify(rectResult))
+          if (rectResult && rectResult.width > 0 && rectResult.height > 0) {
+            const nativeImage = await webview.capturePage(rectResult)
+            const imgBuffer = nativeImage.toPNG()
+            console.log('[Automation:webview] Captcha image captured, size=' + imgBuffer.length + ' bytes, sending to OCR...')
+            const captchaResult = await captchaService.recognize(imgBuffer)
+            if (slot.output_key) {
+              varStore.set(slot.output_key, captchaResult.text)
+            }
+            console.log('[Automation:webview] Captcha recognized: "' + captchaResult.text + '", confidence=' + captchaResult.confidence + ', output_key=' + (slot.output_key || '(none)'))
+          } else {
+            console.warn('[Automation:webview] Captcha element not found or zero-size: ' + slot.element_xpath)
+          }
+        } catch (e: any) {
+          console.error('[Automation:webview] Captcha recognition failed: ' + e.message)
+        }
         continue
       }
+
+      // ========== input/click/select ==========
+      console.log('[Automation:webview] Slot: action_type=' + slot.action_type + ', xpath=' + slot.element_xpath + ', is_encrypted=' + (slot.is_encrypted ? 1 : 0))
 
       const actionType = slot.action_type as WebviewActionType
 
       const isEncrypted = slot.is_encrypted && slot.value
       let value = slot.value
+      console.log('[Automation:webview] value(raw): "' + (value || '') + '"')
       if (isEncrypted) {
         value = decryptSlotValue(slot.value, slot.page_id)
+        console.log('[Automation:webview] value(decrypted): "' + (value || '') + '"')
+      }
+      const beforeResolve = value
+      value = resolveTemplateVars(value, varStore)
+      if (beforeResolve !== value) {
+        console.log('[Automation:webview] value(resolved): "' + value + '"')
       }
 
+      console.log('[Automation:webview] Executing ' + slot.action_type + ' on ' + slot.element_xpath + ', value_len=' + (value ? value.length : 0))
       const jsCode = buildWaitAndActJs({
         xpath: slot.element_xpath,
         actionType,
@@ -370,11 +410,13 @@ export async function executeLoginInWebview(endpoint: EndpointFull, webview: Ele
       })
 
       const ok = await webview.executeJavaScript(jsCode)
+      console.log('[Automation:webview] executeJavaScript result: ' + ok)
       if (ok !== true) {
         failedXpaths.push(slot.element_xpath)
         console.error(`[Automation:webview] Element wait timed out: ${slot.element_xpath}`)
         throw new Error(`等待元素超时: ${slot.element_xpath}`)
       }
+      console.log('[Automation:webview] ' + slot.action_type + ' completed')
 
       await delay(slot.timeout || 200)
     }

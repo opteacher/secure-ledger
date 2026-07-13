@@ -23,7 +23,7 @@ export default defineConfig({
           build: {
             outDir: 'dist-electron',
             rollupOptions: {
-              external: ['better-sqlite3', 'puppeteer-core', 'ssh2', 'nodemailer', 'sharp', '@img/sharp-win32-x64', '@img/sharp-libvips-win32-x64']
+              external: ['better-sqlite3', 'puppeteer-core', 'ssh2', 'nodemailer', 'sharp', '@img/sharp-win32-x64', '@img/sharp-libvips-win32-x64', 'tesseract.js', 'tesseract.js-core']
             }
           }
         }

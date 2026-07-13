@@ -23,7 +23,11 @@
     "test:frontend": "vitest run --config vitest.config.frontend.ts",
     "test:frontend:coverage": "vitest run --config vitest.config.frontend.ts --coverage",
     "test:report": "node scripts/generate-test-report.js",
-    "decrypt-db": "npx tsx scripts/decrypt-db.ts"
+    "decrypt-db": "npx tsx scripts/decrypt-db.ts",
+    "mock-server": "node mock-server/server.js",
+    "mock-register": "node mock-server/register.js",
+    "mock-setup": "npm run mock-server & npm run mock-register",
+    "setup-python": "node scripts/setup-python-runtime.js"
   },
   "keywords": [
     "password-manager",

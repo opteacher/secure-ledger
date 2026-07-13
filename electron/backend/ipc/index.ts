@@ -25,6 +25,7 @@ import * as tokenReceiverService from '../services/tokenReceiver'
 import * as networkUtils from '../utils/network'
 import * as database from '../database/index'
 import * as captchaService from '../services/captcha'
+import * as ocrConfig from '../services/ocrConfig'
 
 interface IPCResponse<T = any> {
   success: boolean
@@ -81,6 +82,8 @@ export function registerAllIPCHandlers(): void {
   
   // 验证码识别
   registerHandler('captcha:recognize', handleCaptchaRecognize)
+  registerHandler('captcha:getConfig', handleCaptchaGetConfig)
+  registerHandler('captcha:setConfig', handleCaptchaSetConfig)
   
   // SSH 文件上传
   registerHandler('ssh:upload', handleSSHUpload)
@@ -347,6 +350,15 @@ async function handleCaptchaRecognize(data: { imageBase64: string }) {
   const buffer = Buffer.from(data.imageBase64, 'base64')
   const result = await captchaService.recognize(buffer)
   return result.text
+}
+
+function handleCaptchaGetConfig() {
+  return ocrConfig.getOcrConfig()
+}
+
+function handleCaptchaSetConfig(data: { method: 'tesseract' | 'muggle' }) {
+  ocrConfig.setOcrMethod(data.method)
+  return ocrConfig.getOcrConfig()
 }
 
 // ============ 登录执行处理器 ============

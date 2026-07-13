@@ -165,10 +165,23 @@ export const loginApi = {
 }
 
 // ============ 验证码识别 API ============
+export interface OcrConfig {
+  method: 'tesseract' | 'muggle'
+  muggleAvailable: boolean
+  mugglePythonPath: string | null
+}
+
 export const captchaApi = {
   // 识别验证码图片（base64 → text）
   recognize: (imageBase64: string) =>
     invoke<string>('captcha:recognize', { imageBase64 }),
+
+  // OCR 配置
+  getConfig: () =>
+    invoke<OcrConfig>('captcha:getConfig'),
+
+  setConfig: (method: 'tesseract' | 'muggle') =>
+    invoke<OcrConfig>('captcha:setConfig', { method }),
 }
 
 // ============ SSH API ============

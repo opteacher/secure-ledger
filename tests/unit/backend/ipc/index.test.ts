@@ -39,6 +39,7 @@ vi.mock('../../../../electron/backend/services/appLock', () => ({
 vi.mock('../../../../electron/backend/services/browserInstance', () => ({ checkBrowserInstance: vi.fn() }))
 vi.mock('../../../../electron/backend/services/keyRotation', () => ({ rotateKeys: vi.fn(), getRotationStatus: vi.fn(), startScheduledRotation: vi.fn(), stopScheduledRotation: vi.fn() }))
 vi.mock('../../../../electron/backend/services/captcha', () => ({ recognize: vi.fn(), shutdownOcr: vi.fn() }))
+vi.mock('../../../../electron/backend/services/ocrConfig', () => ({ getOcrMethod: vi.fn(() => 'tesseract'), setOcrMethod: vi.fn(), getOcrConfig: vi.fn(() => ({ method: 'tesseract', muggleAvailable: false, mugglePythonPath: null })) }))
 vi.mock('../../../../electron/backend/crypto/secureKeyStorage', () => ({ isEncryptionAvailable: vi.fn(), generateKeys: vi.fn(), loadKeys: vi.fn(), getStatus: vi.fn(), deleteKeys: vi.fn() }))
 vi.mock('../../../../electron/backend/services/endpointShare', () => ({
   generateShareToken: vi.fn(), importEndpointFromToken: vi.fn(), checkTokenPermission: vi.fn(),
@@ -91,10 +92,10 @@ const ALL_EXPECTED_CHANNELS: string[] = [
   'secureKeyStorage:isEncryptionAvailable',
   'tokenReceiver:start', 'tokenReceiver:stop', 'tokenReceiver:status',
   'network:getLocalIPs',
-  'captcha:recognize',
+  'captcha:recognize', 'captcha:getConfig', 'captcha:setConfig',
 ]
 
-const EXPECTED_COUNT = 107
+const EXPECTED_COUNT = 109
 
 describe('registerAllIPCHandlers', () => {
   beforeEach(async () => {
@@ -186,7 +187,7 @@ describe('registerAllIPCHandlers', () => {
   it('captcha: 1', async () => {
     const { registerAllIPCHandlers } = await import('../../../../electron/backend/ipc/index')
     registerAllIPCHandlers()
-    expect(mockIpcMain.handle.mock.calls.map((c: any[]) => c[0]).filter((c: string) => c.startsWith('captcha:')).length).toBe(1)
+    expect(mockIpcMain.handle.mock.calls.map((c: any[]) => c[0]).filter((c: string) => c.startsWith('captcha:')).length).toBe(3)
   })
   it('captcha:recognize handler 调用 captchaService.recognize', async () => {
     const { recognize } = await import('../../../../electron/backend/services/captcha')

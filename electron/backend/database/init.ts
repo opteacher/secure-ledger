@@ -159,6 +159,44 @@ export function initTables(): void {
     run(`ALTER TABLE slot ADD COLUMN output_key TEXT DEFAULT ''`)
   } catch {}
   
+  // 迁移：slot 表 action_type CHECK 约束添加 'captcha'
+  try {
+    const tableInfo = queryOne("SELECT sql FROM sqlite_master WHERE type='table' AND name='slot'") as { sql: string } | null
+    if (tableInfo && !tableInfo.sql.includes("'captcha'")) {
+      console.log('[Database] Migrating slot table: adding captcha action_type...')
+      transaction(() => {
+        run(`
+          CREATE TABLE IF NOT EXISTS slot_migrate (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            page_id INTEGER NOT NULL,
+            order_index INTEGER DEFAULT 0,
+            name TEXT DEFAULT '',
+            element_xpath TEXT NOT NULL,
+            action_type TEXT CHECK(action_type IN ('input', 'click', 'select', 'password', 'keyfile', 'captcha')) DEFAULT 'input',
+            value TEXT DEFAULT '',
+            is_encrypted INTEGER DEFAULT 0,
+            timeout INTEGER DEFAULT 200,
+            username TEXT,
+            keyfile TEXT,
+            passphrase TEXT,
+            output_key TEXT DEFAULT '',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (page_id) REFERENCES page(id) ON DELETE CASCADE
+          )
+        `)
+        run(`INSERT INTO slot_migrate SELECT * FROM slot`)
+        run(`DROP TABLE slot`)
+        run(`ALTER TABLE slot_migrate RENAME TO slot`)
+        run(`CREATE INDEX IF NOT EXISTS idx_slot_page ON slot(page_id)`)
+        run(`CREATE INDEX IF NOT EXISTS idx_slot_order ON slot(page_id, order_index)`)
+      })()
+      console.log('[Database] Slot table migration complete')
+    }
+  } catch (e: any) {
+    console.log('[Database] Slot captcha migration skipped:', e.message)
+  }
+  
   // 迁移：terminal 表添加 terminal_type 字段（终端类型标识符）
   try {
     run(`ALTER TABLE terminal ADD COLUMN terminal_type TEXT DEFAULT ''`)

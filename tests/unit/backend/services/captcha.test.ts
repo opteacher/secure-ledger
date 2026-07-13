@@ -30,8 +30,10 @@ const {
     greyscale: vi.fn().mockReturnThis(),
     normalize: vi.fn().mockReturnThis(),
     resize: vi.fn().mockReturnThis(),
+    threshold: vi.fn().mockReturnThis(),
+    median: vi.fn().mockReturnThis(),
     sharpen: vi.fn().mockReturnThis(),
-    linear: vi.fn().mockReturnThis(),
+    trim: vi.fn().mockReturnThis(),
     png: vi.fn().mockReturnThis(),
     toBuffer: vi.fn().mockResolvedValue(Buffer.from('processed')),
     metadata: vi.fn().mockResolvedValue({ width: 100, height: 50 }),
@@ -78,8 +80,10 @@ describe('captcha 服务', () => {
     mockChain.greyscale.mockReturnThis()
     mockChain.normalize.mockReturnThis()
     mockChain.resize.mockReturnThis()
+    mockChain.threshold.mockReturnThis()
+    mockChain.median.mockReturnThis()
     mockChain.sharpen.mockReturnThis()
-    mockChain.linear.mockReturnThis()
+    mockChain.trim.mockReturnThis()
     mockChain.png.mockReturnThis()
     mockChain.toBuffer.mockResolvedValue(Buffer.from('processed'))
     mockChain.metadata.mockResolvedValue({ width: 100, height: 50 })
@@ -128,17 +132,21 @@ describe('captcha 服务', () => {
 
       expect(mockSetParameters).toHaveBeenCalledWith({
         tessedit_char_whitelist: '0123456789',
+        tessedit_pageseg_mode: '7',
       })
     })
 
-    it('无 whitelist 时不调用 setParameters', async () => {
+    it('默认使用大写字母+数字白名单和 PSM 7', async () => {
       mockRecognize.mockResolvedValue({
         data: { text: 'AB12', confidence: 95 },
       })
 
       await recognize(Buffer.from('image'))
 
-      expect(mockSetParameters).not.toHaveBeenCalled()
+      expect(mockSetParameters).toHaveBeenCalledWith({
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+        tessedit_pageseg_mode: '7',
+      })
     })
 
     it('默认 postProcess 移除非字母数字字符', async () => {
@@ -202,9 +210,12 @@ describe('captcha 服务', () => {
 
       expect(mockSharp).toHaveBeenCalled()
       expect(mockChain.greyscale).toHaveBeenCalled()
+      expect(mockChain.resize).toHaveBeenCalled()
       expect(mockChain.normalize).toHaveBeenCalled()
+      expect(mockChain.threshold).toHaveBeenCalled()
+      expect(mockChain.median).toHaveBeenCalled()
       expect(mockChain.sharpen).toHaveBeenCalled()
-      expect(mockChain.linear).toHaveBeenCalled()
+      expect(mockChain.trim).toHaveBeenCalled()
       expect(mockChain.png).toHaveBeenCalled()
       expect(mockChain.toBuffer).toHaveBeenCalled()
     })
@@ -219,7 +230,7 @@ describe('captcha 服务', () => {
       expect(mockChain.metadata).toHaveBeenCalled()
     })
 
-    it('调用 resize 放大图像 4 倍', async () => {
+    it('调用 resize 智能放大图像 (minDim < 60 → 2x)', async () => {
       mockChain.metadata.mockResolvedValue({ width: 100, height: 50 })
       mockRecognize.mockResolvedValue({
         data: { text: 'AB', confidence: 90 },
@@ -229,9 +240,9 @@ describe('captcha 服务', () => {
 
       expect(mockChain.resize).toHaveBeenCalled()
       const resizeArgs = mockChain.resize.mock.calls[0]
-      // targetWidth = 100 * 4 = 400, targetHeight = 50 * 4 = 200
-      expect(resizeArgs[0]).toBe(400)
-      expect(resizeArgs[1]).toBe(200)
+      // minDim = 50 (< 60) → scale = 2, targetWidth = 200, targetHeight = 100
+      expect(resizeArgs[0]).toBe(200)
+      expect(resizeArgs[1]).toBe(100)
     })
   })
 

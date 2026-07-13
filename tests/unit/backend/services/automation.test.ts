@@ -279,7 +279,7 @@ describe('executeLoginInWebview', () => {
       expect((mockWebview as any).executeJavaScript).toHaveBeenCalledTimes(1)
     })
 
-    it('captcha slot 在 webview 模式中被跳过 (不调用 executeJavaScript)', async () => {
+    it('captcha slot 在 webview 模式中截图识别 (getBoundingClientRect + 后续 click)', async () => {
       const endpoint = {
         id: 1, name: 'T', login_type: 'web' as const, share_token: null,
         pages: [{
@@ -292,8 +292,8 @@ describe('executeLoginInWebview', () => {
       }
       const mockWebview = makeMockWebview(true)
       await executeLoginInWebview(endpoint as any, mockWebview)
-      // Only the click slot should be executed (captcha skipped)
-      expect((mockWebview as any).executeJavaScript).toHaveBeenCalledTimes(1)
+      // captcha: executeJavaScript for rect query + click: executeJavaScript for buildWaitAndActJs = 2
+      expect((mockWebview as any).executeJavaScript).toHaveBeenCalledTimes(2)
     })
 
     it('slot.timeout > 0 时在每步操作后被应用 (delay)', async () => {

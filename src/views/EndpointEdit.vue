@@ -473,7 +473,7 @@ class="group flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-p
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEndpointStore } from '../stores/endpoint'
-import { pageApi, slotApi, sshApi, type Page, type Slot } from '../apis'
+import { pageApi, slotApi, sshApi, captchaApi, type Page, type Slot } from '../apis'
 import { safeConfirm, messageError, messageInfo, messageWarning } from '../utils/dialog'
 import { buildWaitAndActJs, type WebviewActionType } from '../utils/webview-execution'
 
@@ -899,6 +899,8 @@ async function executePages(fromIndex: number, toIndex: number, executeLastPageS
   if (executing.value) return
   executing.value = true
   
+  const varStore = new Map<string, string>()
+
   try {
     for (let i = fromIndex; i <= toIndex && i < pages.value.length; i++) {
       const pageData = pages.value[i]
@@ -939,25 +941,116 @@ async function executePages(fromIndex: number, toIndex: number, executeLastPageS
       
       if (i < toIndex || executeLastPageSlots) {
         for (const slot of pageData.slots) {
+          // ========== captcha ==========
           if (slot.action_type === 'captcha') {
-            console.warn(`[执行] 验证码识别 (output_key=${slot.output_key || ''}) 在 webview 预览中不支持，将在 Puppeteer 执行时自动识别`)
+            const outputKey = slot.output_key || ''
+            console.log(`[执行] Captcha: xpath=${slot.element_xpath}, output_key=${outputKey || '(none)'}`)
+            try {
+              // 使用 webview 内 JS 的 canvas API 截图（比 capturePage 更可靠，避免 NativeImage 跨进程问题）
+              const xpathJson = JSON.stringify(slot.element_xpath)
+              const captureResult = await webviewRef.value.executeJavaScript(`
+                (async () => {
+                  const el = document.evaluate(${xpathJson}, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+                  if (!el) return { error: 'element not found' };
+                  
+                  const tag = el.tagName;
+                  const canvas = document.createElement('canvas');
+                  
+                  if (tag === 'IMG') {
+                    const w = el.naturalWidth || el.width;
+                    const h = el.naturalHeight || el.height;
+                    if (!w || !h) return { error: 'zero-size img' };
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(el, 0, 0, w, h);
+                    try {
+                      return { dataUrl: canvas.toDataURL('image/png'), tag: tag };
+                    } catch (taintErr) {
+                      return { error: 'tainted canvas: ' + taintErr.message };
+                    }
+                  } else if (tag === 'CANVAS') {
+                    try {
+                      return { dataUrl: el.toDataURL('image/png'), tag: tag };
+                    } catch (e) {
+                      return { error: 'canvas toDataURL failed: ' + e.message };
+                    }
+                  } else {
+                    // 非 img/canvas 元素，返回 rect 让宿主用 capturePage
+                    const r = el.getBoundingClientRect();
+                    return { rect: { x: r.left, y: r.top, width: r.width, height: r.height }, tag: tag };
+                  }
+                })()
+              `)
+              console.log(`[执行] Captcha capture result:`, JSON.stringify(captureResult))
+
+              let base64: string | null = null
+
+              if (captureResult?.dataUrl) {
+                const b64 = captureResult.dataUrl.split(',')[1] || captureResult.dataUrl
+                base64 = b64
+                console.log(`[执行] Captcha canvas capture OK, tag=${captureResult.tag}, base64_len=${b64.length}`)
+              } else if (captureResult?.rect && captureResult.rect.width > 0 && captureResult.rect.height > 0) {
+                // fallback: 非 img/canvas 元素走 capturePage
+                console.log(`[执行] Captcha fallback to capturePage, tag=${captureResult.tag}, rect=`, JSON.stringify(captureResult.rect))
+                const nativeImage = await (webviewRef.value as any).capturePage(captureResult.rect)
+                const dataUrl: string = nativeImage.toDataURL()
+                const b64 = dataUrl.split(',')[1] || dataUrl
+                base64 = b64
+                console.log(`[执行] Captcha capturePage OK, base64_len=${b64.length}`)
+              } else {
+                console.warn(`[执行] Captcha capture failed: ${captureResult?.error || 'no image data'}`)
+                continue
+              }
+
+              if (!base64) continue
+
+              console.log(`[执行] Captcha sending to OCR, base64_len=${base64.length}`)
+              const text = await captchaApi.recognize(base64)
+              if (outputKey) {
+                varStore.set(outputKey, text)
+              }
+              console.log(`[执行] Captcha recognized: "${text}", output_key=${outputKey || '(none)'}`)
+            } catch (e: any) {
+              console.error(`[执行] Captcha recognition failed:`, e.message, e.stack)
+            }
             continue
           }
 
+          // ========== input/click/select ==========
           try {
-            console.log(`[执行] 页面 ${i + 1} 操作:`, slot.action_type, slot.element_xpath)
+            console.log(`[执行] Slot: action_type=${slot.action_type}, xpath=${slot.element_xpath}, is_encrypted=${slot.is_encrypted}`)
 
-            if (!webviewRef.value) continue
+            if (!webviewRef.value) {
+              console.warn(`[执行] webviewRef is null, skip`)
+              continue
+            }
 
+            // decrypt
             let slotValue = slot.value
+            console.log(`[执行] value(raw): "${slotValue}"`)
             if (slot.is_encrypted && slotValue) {
               try {
                 slotValue = await slotApi.decryptValue(slotValue, slot.page_id)
+                console.log(`[执行] value(decrypted): "${slotValue}"`)
               } catch (e: any) {
-                console.error('[执行] 解密失败:', e.message)
+                console.error('[执行] decrypt failed:', e.message)
+              }
+            }
+            // template var resolve
+            if (slotValue) {
+              const before = slotValue
+              slotValue = slotValue.replace(/\{\{(\w+)\}\}/g, (_, key: string) => {
+                const val = varStore.get(key)
+                console.log(`[执行] template var: {{${key}}} -> "${val || `{{${key}}}`}"`)
+                return val || `{{${key}}}`
+              })
+              if (before !== slotValue) {
+                console.log(`[执行] value(resolved): "${slotValue}"`)
               }
             }
 
+            console.log(`[执行] Executing ${slot.action_type} on ${slot.element_xpath}, value_len=${(slotValue || '').length}`)
             const jsCode = buildWaitAndActJs({
               xpath: slot.element_xpath,
               actionType: slot.action_type as WebviewActionType,
@@ -965,15 +1058,16 @@ async function executePages(fromIndex: number, toIndex: number, executeLastPageS
               outputKey: slot.output_key,
             })
             const result = await webviewRef.value.executeJavaScript(jsCode)
+            console.log(`[执行] executeJavaScript result: ${result}`)
             if (result !== true) {
               messageError('步骤执行失败', `等待元素超时, XPath: ${slot.element_xpath}`)
-              console.error(`[执行] 等待元素超时: ${slot.element_xpath}`)
+              console.error(`[执行] Element wait timed out: ${slot.element_xpath}`)
               break
             }
-            console.log(`[执行] 操作结果: 成功`)
+            console.log(`[执行] ${slot.action_type} completed`)
             await new Promise(resolve => setTimeout(resolve, slot.timeout || 200))
           } catch (e: any) {
-            console.error(`[执行] 操作失败:`, e.message)
+            console.error(`[执行] Slot failed:`, e.message)
             messageError('步骤执行失败', e.message)
             break
           }

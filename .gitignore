@@ -86,3 +86,21 @@ scripts/fix-*.sh
 # WASM binaries and emscripten-generated loader (compiled artifacts)
 *.wasm
 scripts/decrypt-portable/sql-wasm.js
+
+# Portable Python runtime (large binaries, downloaded separately)
+resources/python-runtime/
+resources/python/*.zip
+resources/python/*.whl
+resources/python/whls/
+resources/python/get-pip.py
+resources/python/muggle_ocr/
+resources/python/muggle_ocr-main.zip
+
+# Temp files (build intermediates)
+temp/
+
+# muggle_ocr extracted source (large .pb model files)
+resources/muggle_ocr/
+
+# OpenCode internal
+.sisyphus/

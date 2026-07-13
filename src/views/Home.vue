@@ -347,6 +347,33 @@
                     </div>
                   </div>
                 </div>
+
+                <!-- OCR 验证码识别方案 -->
+                <div class="p-3 rounded-lg bg-surface-input">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="text-sm font-medium text-fg-primary">验证码识别方案</p>
+                      <p class="text-xs text-fg-muted">{{ ocrConfig?.method === 'muggle' ? 'muggle_ocr (Python ML)' : 'Tesseract.js (本地 OCR)' }}</p>
+                    </div>
+                    <div class="flex gap-1 p-1 rounded-lg bg-surface-card border border-surface">
+                      <button
+                        @click="setOcrMethod('tesseract')"
+                        :class="ocrConfig?.method === 'tesseract' ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300' : 'text-fg-muted hover:text-fg-primary'"
+                        class="px-3 py-1 rounded-md text-sm transition-colors"
+                      >Tesseract</button>
+                      <button
+                        @click="setOcrMethod('muggle')"
+                        :disabled="!ocrConfig?.muggleAvailable"
+                        :class="ocrConfig?.method === 'muggle' ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300' : 'text-fg-muted hover:text-fg-primary'"
+                        :title="!ocrConfig?.muggleAvailable ? 'muggle_ocr 未安装。需 Python + muggle_ocr 包' : 'muggle_ocr (Python ML 验证码识别)'"
+                        class="px-3 py-1 rounded-md text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >Muggle</button>
+                    </div>
+                  </div>
+                  <p v-if="!ocrConfig?.muggleAvailable" class="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                    muggle_ocr 不可用 — 请安装 Python 和 muggle_ocr 包
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -1051,7 +1078,7 @@ import { useRouter } from 'vue-router'
 import { useEndpointStore } from '../stores/endpoint'
 import { useThemeStore } from '@/stores/theme'
 import type { ThemeMode } from '@/stores/theme'
-import { loginApi, terminalApi, terminalConfigApi, endpointApi, sshApi, appApi, ttydApi, plinkApi, sshpassApi, platformApi, browserApi, appLockApi, keyRotationApi, secureKeyStorageApi, slotApi, type ChromeInfo, type TerminalTool, type TerminalConfig, type EndpointFull, type Endpoint, type SSHConfig, type TtydStatus, type TtydPathInfo, type PortCheckResult, type PlinkPathInfo, type SshpassPathInfo, type PlatformInfo, type BrowserConfig, type AppLockSettings, type RotationStatus, type TokenStatus } from '../apis'
+import { loginApi, terminalApi, terminalConfigApi, endpointApi, sshApi, appApi, ttydApi, plinkApi, sshpassApi, platformApi, browserApi, appLockApi, keyRotationApi, secureKeyStorageApi, slotApi, captchaApi, type ChromeInfo, type TerminalTool, type TerminalConfig, type EndpointFull, type Endpoint, type SSHConfig, type TtydStatus, type TtydPathInfo, type PortCheckResult, type PlinkPathInfo, type SshpassPathInfo, type PlatformInfo, type BrowserConfig, type AppLockSettings, type RotationStatus, type TokenStatus, type OcrConfig } from '../apis'
 import { safeConfirm, messageSuccess, messageError, messageWarning } from '../utils/dialog'
 import UploadModal from '../components/UploadModal.vue'
 import ShareEndpointDialog from '../components/ShareEndpointDialog.vue'
@@ -1201,6 +1228,20 @@ let activityListener: (() => void) | null = null
 // 锁定相关状态
 const lockDelayMinutes = ref(5)
 
+// OCR 配置
+const ocrConfig = ref<OcrConfig | null>(null)
+
+async function refreshOcrConfig() {
+  try { ocrConfig.value = await captchaApi.getConfig() } catch {}
+}
+
+async function setOcrMethod(method: 'tesseract' | 'muggle') {
+  try {
+    ocrConfig.value = await captchaApi.setConfig(method)
+    messageSuccess(`验证码识别方案已切换为 ${method === 'muggle' ? 'muggle_ocr' : 'Tesseract.js'}`)
+  } catch (e: any) { messageError('切换失败: ' + e.message) }
+}
+
 // 密钥轮换相关状态
 const rotationStatus = ref<RotationStatus | null>(null)
 const rotationLoading = ref(false)
@@ -1309,6 +1350,8 @@ watch(showSettingsModal, async (newVal) => {
     await refreshSettingsTerminalList()
 // 加载锁定设置
 await refreshLockSettings()
+// 加载 OCR 配置
+await refreshOcrConfig()
 // 检查加密服务可用性
     await checkEncryptionAvailable()
     // 加载密钥轮换状态
