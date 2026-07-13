@@ -828,7 +828,7 @@
                 </div>
                 <div>
                   <p class="text-sm font-semibold text-fg-primary">账号管理器 (Secure Ledger)</p>
-                  <p class="text-xs text-fg-muted">版本 1.0.4</p>
+                  <p class="text-xs text-fg-muted">版本 1.0.5</p>
                 </div>
               </div>
             </div>

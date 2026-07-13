@@ -69,3 +69,20 @@ graphify-out/
 tests/reports/
 test-results/
 playwright-report/
+
+# Test coverage output
+coverage/
+
+# OpenCode internal tools
+.opencode/
+
+# Temporary fix/debug scripts
+fix-*.js
+fix-*.cjs
+fix-*.sh
+scripts/fix-*.cjs
+scripts/fix-*.sh
+
+# WASM binaries and emscripten-generated loader (compiled artifacts)
+*.wasm
+scripts/decrypt-portable/sql-wasm.js
