@@ -87,9 +87,11 @@ scripts/fix-*.sh
 *.wasm
 scripts/decrypt-portable/sql-wasm.js
 
-# Portable Python runtime (large binaries, downloaded separately)
+# Portable Python runtime (large binaries)
 resources/python-runtime/
 resources/python/*.zip
+resources/python/*.whl
+resources/python/whls/
 resources/python/get-pip.py
 resources/python/muggle_ocr/
 resources/python/muggle_ocr-main.zip
