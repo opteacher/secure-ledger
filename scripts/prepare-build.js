@@ -252,8 +252,11 @@ function setupPythonRuntime(targetPlatform) {
     console.log('========================================\n')
     return
   }
-  if (!fs.existsSync(whlsDir) || fs.readdirSync(whlsDir).filter(f => f.endsWith('.whl')).length === 0) {
-    console.log('  ⚠ whls 目录为空，跳过 (muggle_ocr 将不可用)')
+    if (!fs.existsSync(whlsDir) || fs.readdirSync(whlsDir).filter(f => f.endsWith('.whl')).length === 0) {
+    console.log('  ⚠ whls 目录为空，无法打包 muggle_ocr')
+    console.log('  请先下载依赖到 resources/python/whls/：')
+    console.log('    npm run setup-python')
+    console.log('  muggle_ocr 将不可用，Tesseract.js 仍正常')
     console.log('========================================\n')
     return
   }
