@@ -8,7 +8,8 @@
   "files": [
     "dist/**/*",
     "dist-electron/**/*",
-    "public/**/*"
+    "public/**/*",
+    "resources/**/*"
   ],
   "asar": true,
   "asarUnpack": [

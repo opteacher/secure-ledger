@@ -61,6 +61,47 @@ if [ "$FFMPEG_FOUND" -eq 0 ]; then
     fi
 fi
 
+# 部署便携 Python 运行时 (muggle_ocr)
+PYTHON_ZIP="$APP_DIR/resources/python/python-3.10.11-embed-amd64.zip"
+WHLS_DIR="$APP_DIR/resources/python/whls"
+RUNTIME_DIR="$APP_DIR/resources/python-runtime"
+
+if [ -f "$PYTHON_ZIP" ] && [ -d "$WHLS_DIR" ] && ls "$WHLS_DIR"/*.whl &>/dev/null; then
+    echo ""
+    echo "========================================"
+    echo " 部署 muggle_ocr 验证码识别引擎"
+    echo "========================================"
+
+    if [ -f "$RUNTIME_DIR/python3" ] || [ -f "$RUNTIME_DIR/python.exe" ]; then
+        echo "✓ Python 运行时已就绪"
+    else
+        echo "  解压 Python..."
+        mkdir -p "$RUNTIME_DIR"
+        unzip -qo "$PYTHON_ZIP" -d "$RUNTIME_DIR"
+        echo 'python310.zip' > "$RUNTIME_DIR/python310._pth"
+        echo '.' >> "$RUNTIME_DIR/python310._pth"
+        echo 'Lib/site-packages' >> "$RUNTIME_DIR/python310._pth"
+        echo '' >> "$RUNTIME_DIR/python310._pth"
+        echo 'import site' >> "$RUNTIME_DIR/python310._pth"
+
+        # 安装 pip + whls
+        PYTHON_EXE="$RUNTIME_DIR/python3"
+        [ -f "$RUNTIME_DIR/python.exe" ] && PYTHON_EXE="$RUNTIME_DIR/python.exe"
+        echo "  安装 pip..."
+        "$PYTHON_EXE" "$APP_DIR/resources/python/get-pip.py" --no-warn-script-location 2>/dev/null
+        echo "  安装依赖 (tensorflow ~335MB，请耐心等待)..."
+        "$PYTHON_EXE" -m pip install --no-index --find-links "$WHLS_DIR" numpy pillow opencv-python pyyaml tensorflow muggle_ocr 2>/dev/null
+
+        if "$PYTHON_EXE" -c "import muggle_ocr" 2>/dev/null; then
+            echo "✓ muggle_ocr 安装成功"
+        else
+            echo "⚠ muggle_ocr 安装失败，验证码识别将使用 Tesseract.js"
+        fi
+    fi
+else
+    echo "ℹ muggle_ocr 素材未打包，跳过"
+fi
+
 # 检测 ttyd（可选）
 if command -v ttyd &> /dev/null; then
     echo "✓ ttyd 已安装"

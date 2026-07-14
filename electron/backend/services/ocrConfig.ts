@@ -105,37 +105,14 @@ function getBundledPythonPath(): string | null {
     const fromDev = resolve(__dirname, '../resources/python-runtime/python.exe')
     if (existsSync(fromDev)) return fromDev
 
-    // 2. 打包后: userData 目录下的 python-runtime/（首次启动时部署）
+    // 2. 打包后: 优先检查 app 安装目录下的 runtime（postinst 脚本部署）
     if (app?.isPackaged) {
-      const userDataRuntime = join(app.getPath('userData'), 'python-runtime', 'python.exe')
+      const appRuntime = join(process.resourcesPath, '..', 'resources', 'python-runtime', process.platform === 'win32' ? 'python.exe' : 'python3')
+      if (existsSync(appRuntime)) return appRuntime
+
+      // 备选: userData 目录
+      const userDataRuntime = join(app.getPath('userData'), 'python-runtime', process.platform === 'win32' ? 'python.exe' : 'python3')
       if (existsSync(userDataRuntime)) return userDataRuntime
-
-      // 3. 未部署 → 尝试从安装包素材自动部署到 userData
-      const pythonZip = join(process.resourcesPath, 'python', 'python-3.10.11-embed-amd64.zip')
-      const getPip = join(process.resourcesPath, 'python', 'get-pip.py')
-      const whlsDir = join(process.resourcesPath, 'python', 'whls')
-      if (existsSync(pythonZip) && existsSync(getPip) && existsSync(whlsDir)) {
-        try {
-          const { execSync } = require('child_process')
-          const userDataDir = join(app.getPath('userData'), 'python-runtime')
-          const userDataPython = join(userDataDir, 'python.exe')
-
-          // 解压 Python
-          require('fs').mkdirSync(userDataDir, { recursive: true })
-          if (process.platform === 'win32') {
-            execSync(`powershell -Command "Expand-Archive -Path '${pythonZip}' -DestinationPath '${userDataDir}' -Force"`, { stdio: 'ignore' })
-          }
-          // 配置 site
-          require('fs').writeFileSync(join(userDataDir, 'python310._pth'), 'python310.zip\n.\nLib\\site-packages\n\nimport site\n')
-          // 安装 pip + whl
-          execSync(`"${userDataPython}" "${getPip}" --no-warn-script-location`, { stdio: 'ignore' })
-          execSync(`"${userDataPython}" -m pip install --no-index --find-links "${whlsDir}" numpy pillow opencv-python pyyaml tensorflow muggle_ocr`, { stdio: 'ignore' })
-
-          if (existsSync(userDataPython)) return userDataPython
-        } catch {
-          // 部署失败静默回退
-        }
-      }
     }
 
     return null
