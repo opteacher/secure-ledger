@@ -8,6 +8,23 @@ echo "========================================"
 echo " 账号管理器 - 安装完成"
 echo "========================================"
 
+# Electron chrome-sandbox 需要 setuid 权限
+APP_DIR="/opt/账号管理器"
+SANDBOX="$APP_DIR/chrome-sandbox"
+if [ -f "$SANDBOX" ]; then
+    chown root:root "$SANDBOX" 2>/dev/null
+    chmod 4755 "$SANDBOX" 2>/dev/null
+    echo "✓ chrome-sandbox 权限已设置"
+else
+    # Electron 29+ 可能使用不同的 sandbox 路径
+    for sandbox in "$APP_DIR"/chrome-sandbox "$APP_DIR"/chrome_crashpad_handler; do
+        if [ -f "$sandbox" ]; then
+            chown root:root "$sandbox" 2>/dev/null
+            chmod 4755 "$sandbox" 2>/dev/null
+        fi
+    done
+fi
+
 # 检测 sshpass（应该已通过依赖安装）
 if command -v sshpass &> /dev/null; then
     echo "✓ sshpass 已安装"
