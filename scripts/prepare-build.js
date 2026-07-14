@@ -291,5 +291,26 @@ function setupPythonRuntime(targetPlatform) {
 
 setupPythonRuntime(targetPlatform)
 
+// 复制 Python 素材到 dist/（electron-builder 会打包 dist/**/*，绕过 gitignore）
+const PYTHON_SRC = path.join(PROJECT_ROOT, 'resources', 'python')
+const PYTHON_DST = path.join(PROJECT_ROOT, 'dist-electron', 'python-resources')
+if (fs.existsSync(path.join(PYTHON_SRC, 'whls'))) {
+  console.log('\n复制 Python 素材到 dist/')
+  if (!fs.existsSync(PYTHON_DST)) fs.mkdirSync(PYTHON_DST, { recursive: true })
+  const { execSync } = require('child_process')
+  const isWin = process.platform === 'win32'
+  for (const item of ['whls', 'get-pip.py', 'muggleOCR.py']) {
+    const s = path.join(PYTHON_SRC, item)
+    const d = path.join(PYTHON_DST, item)
+    if (!fs.existsSync(s)) { console.log('  ⚠', item, 'not found'); continue }
+    if (fs.statSync(s).isDirectory()) {
+      execSync(isWin ? `xcopy /E /Y /Q "${s}" "${d}\\"` : `cp -r "${s}/." "${d}"`, { stdio: 'ignore' })
+    } else {
+      fs.copyFileSync(s, d)
+    }
+    console.log('  ✓', item)
+  }
+}
+
 // 执行准备
 prepareChromium(targetPlatform, targetArch, useLegacy)

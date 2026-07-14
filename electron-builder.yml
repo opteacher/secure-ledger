@@ -93,7 +93,7 @@
       "to": "tessdata"
     },
     {
-      "from": "resources/python",
+      "from": "dist-electron/python-resources",
       "to": "python"
     }
   ]

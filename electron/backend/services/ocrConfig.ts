@@ -66,24 +66,23 @@ export function isMuggleAvailable(): boolean {
  * 获取 muggle_ocr Python 路径（或 null 如果不可用）
  * 结果会缓存，避免每次识别都启动 Python 进程检测
  */
-let _mugglePythonPathCache: string | null | undefined = undefined
+let _mugglePythonPathCache: { path: string; ts: number } | null = null
 
 export function getMugglePythonPath(): string | null {
-  if (_mugglePythonPathCache !== undefined) return _mugglePythonPathCache
+  // 命中缓存（30 秒内）直接返回
+  if (_mugglePythonPathCache && Date.now() - _mugglePythonPathCache.ts < 30000) {
+    return _mugglePythonPathCache.path
+  }
 
   try {
     const { execSync } = require('child_process')
     const pythonCmd = getPythonCommand()
-    if (!pythonCmd) {
-      _mugglePythonPathCache = null
-      return null
-    }
+    if (!pythonCmd) return null
 
     execSync(`"${pythonCmd}" -c "import muggle_ocr"`, { timeout: 5000, stdio: 'ignore' })
-    _mugglePythonPathCache = pythonCmd
+    _mugglePythonPathCache = { path: pythonCmd, ts: Date.now() }
     return pythonCmd
   } catch {
-    _mugglePythonPathCache = null
     return null
   }
 }
@@ -92,7 +91,7 @@ export function getMugglePythonPath(): string | null {
  * 刷新 muggle_ocr 缓存（用户安装/卸载后调用）
  */
 export function refreshMuggleCache(): void {
-  _mugglePythonPathCache = undefined
+  _mugglePythonPathCache = null
 }
 
 function getBundledPythonPath(): string | null {
@@ -105,14 +104,44 @@ function getBundledPythonPath(): string | null {
     const fromDev = resolve(__dirname, '../resources/python-runtime/python.exe')
     if (existsSync(fromDev)) return fromDev
 
-    // 2. 打包后: 优先检查 app 安装目录下的 runtime（postinst 脚本部署）
+    // 2. 打包后: 检查 app 目录 / userData，都没有则从素材自动部署
     if (app?.isPackaged) {
       const appRuntime = join(process.resourcesPath, '..', 'resources', 'python-runtime', process.platform === 'win32' ? 'python.exe' : 'python3')
       if (existsSync(appRuntime)) return appRuntime
 
-      // 备选: userData 目录
       const userDataRuntime = join(app.getPath('userData'), 'python-runtime', process.platform === 'win32' ? 'python.exe' : 'python3')
       if (existsSync(userDataRuntime)) return userDataRuntime
+
+      // 以上都没有 → 从安装包素材自动部署到 userData（仅一次）
+      const pythonZip = join(process.resourcesPath, 'python', 'python-3.10.11-embed-amd64.zip')
+      const getPip = join(process.resourcesPath, 'python', 'get-pip.py')
+      const whlsDir = join(process.resourcesPath, 'python', 'whls')
+      if (existsSync(pythonZip) && existsSync(whlsDir)) {
+        try {
+          const { execSync } = require('child_process')
+          const userDataDir = join(app.getPath('userData'), 'python-runtime')
+          const userDataPython = join(userDataDir, process.platform === 'win32' ? 'python.exe' : 'python3')
+          require('fs').mkdirSync(userDataDir, { recursive: true })
+
+          if (process.platform === 'win32') {
+            execSync(`powershell -Command "Expand-Archive -Path '${pythonZip}' -DestinationPath '${userDataDir}' -Force"`, { stdio: 'ignore', timeout: 60000 })
+          } else {
+            execSync(`unzip -qo "${pythonZip}" -d "${userDataDir}"`, { stdio: 'ignore', timeout: 60000 })
+          }
+
+          const pthFile = join(userDataDir, 'python310._pth')
+          require('fs').writeFileSync(pthFile, 'python310.zip\n.\nLib/site-packages\n\nimport site\n')
+
+          if (existsSync(getPip)) {
+            execSync(`"${userDataPython}" "${getPip}" --no-warn-script-location`, { stdio: 'ignore', timeout: 60000 })
+          }
+          execSync(`"${userDataPython}" -m pip install --no-index --find-links "${whlsDir}" numpy pillow opencv-python pyyaml tensorflow muggle_ocr`, { stdio: 'ignore', timeout: 300000 })
+
+          if (existsSync(userDataPython)) return userDataPython
+        } catch {
+          // 静默回退
+        }
+      }
     }
 
     return null
