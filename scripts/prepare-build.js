@@ -215,5 +215,78 @@ function validateTessdata() {
 
 validateTessdata()
 
+// ─── 便携 Python 运行时 (muggle_ocr) ─────────────────────
+function setupPythonRuntime(targetPlatform) {
+  if (targetPlatform !== 'win32') {
+    console.log('\n========================================')
+    console.log('跳过 Python 运行时 (仅 Windows 支持)')
+    console.log('========================================\n')
+    return
+  }
+
+  const runtimeDir = path.join(PROJECT_ROOT, 'resources', 'python-runtime')
+  const pythonExe = path.join(runtimeDir, 'python.exe')
+  const pythonZip = path.join(PROJECT_ROOT, 'resources', 'python', 'python-3.10.11-embed-amd64.zip')
+  const getPip = path.join(PROJECT_ROOT, 'resources', 'python', 'get-pip.py')
+  const whlsDir = path.join(PROJECT_ROOT, 'resources', 'python', 'whls')
+
+  console.log('\n========================================')
+  console.log('便携 Python 运行时 (muggle_ocr)')
+  console.log('========================================')
+
+  if (fs.existsSync(pythonExe)) {
+    try {
+      require('child_process').execSync(`"${pythonExe}" -c "import muggle_ocr"`, { timeout: 5000, stdio: 'ignore' })
+      console.log('  ✓ muggle_ocr 已就绪')
+      console.log('========================================\n')
+      return
+    } catch {
+      console.log('  Python 已安装但 muggle_ocr 未就绪，重新安装...')
+      fs.rmSync(runtimeDir, { recursive: true, force: true })
+    }
+  }
+
+  if (!fs.existsSync(pythonZip)) {
+    console.log('  ⚠ python-3.10.11-embed-amd64.zip 未找到，跳过')
+    console.log('  muggle_ocr 将不可用，Tesseract.js 仍正常')
+    console.log('========================================\n')
+    return
+  }
+  if (!fs.existsSync(whlsDir) || fs.readdirSync(whlsDir).filter(f => f.endsWith('.whl')).length === 0) {
+    console.log('  ⚠ whls 目录为空，跳过 (muggle_ocr 将不可用)')
+    console.log('========================================\n')
+    return
+  }
+
+  try {
+    console.log('  解压 Python embeddable...')
+    require('child_process').execSync(
+      `powershell -Command "Expand-Archive -Path '${pythonZip}' -DestinationPath '${runtimeDir}' -Force"`,
+      { stdio: 'inherit' }
+    )
+    const pthFile = path.join(runtimeDir, 'python310._pth')
+    fs.writeFileSync(pthFile, 'python310.zip\n.\nLib\\site-packages\n\nimport site\n')
+
+    console.log('  安装 pip...')
+    require('child_process').execSync(`"${pythonExe}" "${getPip}" --no-warn-script-location`, { stdio: 'inherit' })
+
+    console.log('  安装 muggle_ocr + 依赖 (tensorflow ~335MB，请耐心等待)...')
+    require('child_process').execSync(
+      `"${pythonExe}" -m pip install --no-index --find-links "${whlsDir}" numpy pillow opencv-python pyyaml tensorflow muggle_ocr`,
+      { stdio: 'inherit' }
+    )
+
+    require('child_process').execSync(`"${pythonExe}" -c "import muggle_ocr; print('OK')"`, { stdio: 'inherit' })
+    console.log('  ✓ muggle_ocr 运行时就绪')
+  } catch (e) {
+    console.error('  ✗ 安装失败:', e.message)
+    console.log('  muggle_ocr 将不可用，Tesseract.js 仍正常')
+  }
+
+  console.log('========================================\n')
+}
+
+setupPythonRuntime(targetPlatform)
+
 // 执行准备
 prepareChromium(targetPlatform, targetArch, useLegacy)
