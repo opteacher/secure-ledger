@@ -216,100 +216,131 @@ function validateTessdata() {
 validateTessdata()
 
 // ─── 便携 Python 运行时 (muggle_ocr) ─────────────────────
+// 用户提供: python zip + muggle_ocr-main.zip → 本函数自动下载 whl 并打包
 function setupPythonRuntime(targetPlatform) {
-  if (targetPlatform !== 'win32') {
-    console.log('\n========================================')
-    console.log('跳过 Python 运行时 (仅 Windows 支持)')
-    console.log('========================================\n')
-    return
+  const isWin = targetPlatform === 'win32'
+  const PYTHON_SRC = path.join(PROJECT_ROOT, 'resources', 'python')
+  const RUNTIME_DIR = path.join(PROJECT_ROOT, 'resources', 'python-runtime')
+  const WHLS_DIR = path.join(PYTHON_SRC, 'whls')
+  const PIP_MIRROR = 'https://pypi.tuna.tsinghua.edu.cn/simple'
+
+  let pythonExe, pythonArchive
+
+  if (isWin) {
+    pythonArchive = path.join(PYTHON_SRC, 'python-3.10.11-embed-amd64.zip')
+    pythonExe = path.join(RUNTIME_DIR, 'python.exe')
+  } else {
+    pythonArchive = path.join(PYTHON_SRC, 'cpython-3.10.15-x86_64-linux.tar.gz')
+    pythonExe = path.join(RUNTIME_DIR, 'bin', 'python3')
   }
 
-  const runtimeDir = path.join(PROJECT_ROOT, 'resources', 'python-runtime')
-  const pythonExe = path.join(runtimeDir, 'python.exe')
-  const pythonZip = path.join(PROJECT_ROOT, 'resources', 'python', 'python-3.10.11-embed-amd64.zip')
-  const getPip = path.join(PROJECT_ROOT, 'resources', 'python', 'get-pip.py')
-  const whlsDir = path.join(PROJECT_ROOT, 'resources', 'python', 'whls')
+  const muggleZip = path.join(PROJECT_ROOT, 'resources', 'muggle_ocr-main.zip')
 
   console.log('\n========================================')
-  console.log('便携 Python 运行时 (muggle_ocr)')
+  console.log(`muggle_ocr 运行时 (${isWin ? 'Windows' : 'Linux'})`)
   console.log('========================================')
 
+  // 1. 解压 Python
   if (fs.existsSync(pythonExe)) {
-    try {
-      require('child_process').execSync(`"${pythonExe}" -c "import muggle_ocr"`, { timeout: 5000, stdio: 'ignore' })
-      console.log('  ✓ muggle_ocr 已就绪')
+    console.log('  ✓ Python 已就绪')
+  } else if (!fs.existsSync(pythonArchive)) {
+    console.log('  ⚠ 未找到便携 Python，跳过')
+    console.log('========================================\n')
+    return
+  } else {
+    console.log('  解压 Python...')
+    fs.mkdirSync(RUNTIME_DIR, { recursive: true })
+    if (isWin) {
+      require('child_process').execSync(`powershell -Command "Expand-Archive '${pythonArchive}' '${RUNTIME_DIR}' -Force"`, { stdio: 'inherit' })
+      fs.writeFileSync(path.join(RUNTIME_DIR, 'python310._pth'), 'python310.zip\n.\nLib\\site-packages\n\nimport site\n')
+    } else {
+      require('child_process').execSync(`tar xzf "${pythonArchive}" -C "${RUNTIME_DIR}" --strip-components=1`, { stdio: 'inherit' })
+    }
+    console.log('  ✓ 解压完成')
+  }
+
+  // 2. pip
+  if (isWin) {
+    const getPip = path.join(PYTHON_SRC, 'get-pip.py')
+    if (!fs.existsSync(getPip)) {
+      console.log('  ⚠ get-pip.py 未找到，放入 resources/python/get-pip.py')
       console.log('========================================\n')
       return
-    } catch {
-      console.log('  Python 已安装但 muggle_ocr 未就绪，重新安装...')
-      fs.rmSync(runtimeDir, { recursive: true, force: true })
     }
-  }
-
-  if (!fs.existsSync(pythonZip)) {
-    console.log('  ⚠ python-3.10.11-embed-amd64.zip 未找到，跳过')
-    console.log('  muggle_ocr 将不可用，Tesseract.js 仍正常')
-    console.log('========================================\n')
-    return
-  }
-    if (!fs.existsSync(whlsDir) || fs.readdirSync(whlsDir).filter(f => f.endsWith('.whl')).length === 0) {
-    console.log('  ⚠ whls 目录为空，无法打包 muggle_ocr')
-    console.log('  请先下载依赖到 resources/python/whls/：')
-    console.log('    npm run setup-python')
-    console.log('  muggle_ocr 将不可用，Tesseract.js 仍正常')
-    console.log('========================================\n')
-    return
-  }
-
-  try {
-    console.log('  解压 Python embeddable...')
-    require('child_process').execSync(
-      `powershell -Command "Expand-Archive -Path '${pythonZip}' -DestinationPath '${runtimeDir}' -Force"`,
-      { stdio: 'inherit' }
-    )
-    const pthFile = path.join(runtimeDir, 'python310._pth')
-    fs.writeFileSync(pthFile, 'python310.zip\n.\nLib\\site-packages\n\nimport site\n')
-
-    console.log('  安装 pip...')
     require('child_process').execSync(`"${pythonExe}" "${getPip}" --no-warn-script-location`, { stdio: 'inherit' })
-
-    console.log('  安装 muggle_ocr + 依赖 (tensorflow ~335MB，请耐心等待)...')
-    require('child_process').execSync(
-      `"${pythonExe}" -m pip install --no-index --find-links "${whlsDir}" numpy pillow opencv-python pyyaml tensorflow muggle_ocr`,
-      { stdio: 'inherit' }
-    )
-
-    require('child_process').execSync(`"${pythonExe}" -c "import muggle_ocr; print('OK')"`, { stdio: 'inherit' })
-    console.log('  ✓ muggle_ocr 运行时就绪')
-  } catch (e) {
-    console.error('  ✗ 安装失败:', e.message)
-    console.log('  muggle_ocr 将不可用，Tesseract.js 仍正常')
+  } else {
+    require('child_process').execSync(`"${pythonExe}" -m pip install --upgrade pip -q`, { stdio: 'ignore' })
   }
 
+  // 3. 下载 whl（国内源，解析目标平台依赖）
+  console.log('  下载 whl (目标平台: ' + targetPlatform + ')...')
+  fs.mkdirSync(WHLS_DIR, { recursive: true })
+  for (const f of fs.readdirSync(WHLS_DIR)) { if (f.endsWith('.whl')) fs.unlinkSync(path.join(WHLS_DIR, f)) }
+  require('child_process').execSync(
+    `"${pythonExe}" -m pip download -d "${WHLS_DIR}" -i ${PIP_MIRROR} numpy pillow opencv-python pyyaml tensorflow`,
+    { stdio: 'inherit' }
+  )
+
+  // 4. muggle_ocr → whl
+  if (!fs.existsSync(muggleZip)) {
+    console.log('  ⚠ muggle_ocr-main.zip 未找到，放入 resources/')
+    console.log('========================================\n')
+    return
+  }
+  const muggleDir = path.join(PROJECT_ROOT, 'temp', 'muggle_ocr')
+  console.log('  打包 muggle_ocr → whl...')
+
+  // 清上次残留 + 解压
+  if (fs.existsSync(muggleDir)) fs.rmSync(muggleDir, { recursive: true, force: true })
+  require('child_process').execSync(
+    isWin
+      ? `powershell -Command "Expand-Archive '${muggleZip}' '${muggleDir}' -Force"`
+      : `unzip -o "${muggleZip}" -d "${muggleDir}"`,
+    { stdio: 'inherit' }
+  )
+
+  // GitHub zip 解压后多一层目录，上移内容
+  const topEntries = fs.readdirSync(muggleDir).filter(f => !f.startsWith('.'))
+  if (topEntries.length === 1 && fs.statSync(path.join(muggleDir, topEntries[0])).isDirectory()) {
+    const nested = path.join(muggleDir, topEntries[0])
+    for (const f of fs.readdirSync(nested)) {
+      fs.renameSync(path.join(nested, f), path.join(muggleDir, f))
+    }
+    fs.rmdirSync(nested)
+    console.log('  ✓ 已展开嵌套目录')
+  }
+
+  require('child_process').execSync(`"${pythonExe}" -m pip wheel -w "${WHLS_DIR}" "${muggleDir}"`, { stdio: 'inherit' })
+
+  console.log('  ✓ muggle_ocr whls 就绪')
   console.log('========================================\n')
 }
 
 setupPythonRuntime(targetPlatform)
 
-// 复制 Python 素材到 dist/（electron-builder 会打包 dist/**/*，绕过 gitignore）
+// 复制 Python 素材到 dist-electron/（electron-builder 打包用）
 const PYTHON_SRC = path.join(PROJECT_ROOT, 'resources', 'python')
 const PYTHON_DST = path.join(PROJECT_ROOT, 'dist-electron', 'python-resources')
-if (fs.existsSync(path.join(PYTHON_SRC, 'whls'))) {
-  console.log('\n复制 Python 素材到 dist/')
-  if (!fs.existsSync(PYTHON_DST)) fs.mkdirSync(PYTHON_DST, { recursive: true })
-  const { execSync } = require('child_process')
-  const isWin = process.platform === 'win32'
-  for (const item of ['whls', 'get-pip.py', 'muggleOCR.py']) {
-    const s = path.join(PYTHON_SRC, item)
-    const d = path.join(PYTHON_DST, item)
-    if (!fs.existsSync(s)) { console.log('  ⚠', item, 'not found'); continue }
-    if (fs.statSync(s).isDirectory()) {
-      execSync(isWin ? `xcopy /E /Y /Q "${s}" "${d}\\"` : `cp -r "${s}/." "${d}"`, { stdio: 'ignore' })
-    } else {
-      fs.copyFileSync(s, d)
-    }
-    console.log('  ✓', item)
+console.log('\n复制 Python 素材到 dist-electron/')
+if (!fs.existsSync(PYTHON_DST)) fs.mkdirSync(PYTHON_DST, { recursive: true })
+
+const copyItems = ['whls', 'muggleOCR.py']
+if (targetPlatform === 'win32') copyItems.push('get-pip.py', 'python-3.10.11-embed-amd64.zip')
+if (targetPlatform === 'linux') copyItems.push('cpython-3.10.15-x86_64-linux.tar.gz')
+
+for (const item of copyItems) {
+  const s = path.join(PYTHON_SRC, item)
+  const d = path.join(PYTHON_DST, item)
+  if (!fs.existsSync(s)) { console.log('  ⚠', item, 'not found'); continue }
+  if (fs.statSync(s).isDirectory()) {
+    require('child_process').execSync(
+      process.platform === 'win32' ? `xcopy /E /Y /Q "${s}" "${d}\\"` : `cp -r "${s}/." "${d}"`,
+      { stdio: 'ignore' }
+    )
+  } else {
+    fs.copyFileSync(s, d)
   }
+  console.log('  ✓', item)
 }
 
 // 执行准备

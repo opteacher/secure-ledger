@@ -1,202 +1,149 @@
 /**
- * 便携 Python 运行时安装脚本
+ * muggle_ocr 一键部署脚本
  *
- * 用法: node scripts/setup-python-runtime.js [--platform win32|linux|darwin]
+ * 根据当前系统自动：
+ *   1. 下载便携 Python
+ *   2. 安装 pip（Windows 需要）
+ *   3. 用国内源下载 whl 依赖
+ *   4. 打包 muggle_ocr 为 whl
  *
- * 下载 embeddable Python 并安装 muggle_ocr 及其依赖到 resources/python-runtime/
- * 用于内网部署 — 用户无需单独安装 Python
+ * 用法: node scripts/setup-python-runtime.js
  */
 const https = require('https')
-const http = require('http')
 const fs = require('fs')
 const path = require('path')
 const { execSync } = require('child_process')
-const { createWriteStream, existsSync, mkdirSync, rmSync } = require('fs')
 
-const PLATFORM = process.argv.includes('--linux') ? 'linux' :
-                 process.argv.includes('--darwin') ? 'darwin' : 'win32'
+const PROJECT = path.resolve(__dirname, '..')
+const PYTHON_DIR = path.join(PROJECT, 'resources', 'python')
+const WHLS_DIR = path.join(PYTHON_DIR, 'whls')
+const RUNTIME_DIR = path.join(PROJECT, 'resources', 'python-runtime')
+const TEMP_DIR = path.join(PROJECT, 'temp')
+const PIP_MIRROR = 'https://pypi.tuna.tsinghua.edu.cn/simple'
+
+const IS_WIN = process.platform === 'win32'
 
 // ============================================================
-// 配置
-// ============================================================
-const PYTHON_VERSION = '3.10.11'
-const RUNTIME_DIR = path.resolve(__dirname, '../resources/python-runtime')
-const TEMP_DIR = path.resolve(__dirname, '../temp')
-
-const PYTHON_DOWNLOADS = {
-  win32: {
-    url: `https://www.python.org/ftp/python/${PYTHON_VERSION}/python-${PYTHON_VERSION}-embed-amd64.zip`,
-    exeName: 'python.exe',
-    sha256: null, // skip verification for simplicity
-  },
-  linux: {
-    url: `https://github.com/niess/python-build-standalone/releases/download/20241002/cpython-3.10.15+20241002-x86_64-unknown-linux-gnu-install_only.tar.gz`,
-    exeName: 'bin/python3',
-    sha256: null,
-  },
-  darwin: {
-    url: `https://github.com/niess/python-build-standalone/releases/download/20241002/cpython-3.10.15+20241002-x86_64-apple-darwin-install_only.tar.gz`,
-    exeName: 'bin/python3',
-    sha256: null,
-  },
+const CONFIG = IS_WIN ? {
+  pythonUrl: 'https://www.python.org/ftp/python/3.10.11/python-3.10.11-embed-amd64.zip',
+  pythonFile: 'python-3.10.11-embed-amd64.zip',
+  pythonExe: path.join(RUNTIME_DIR, 'python.exe'),
+  pipInstall: true,  // embeddable 需要 get-pip.py
+  libDir: path.join(RUNTIME_DIR, 'Lib', 'site-packages'),
+  pthFile: path.join(RUNTIME_DIR, 'python310._pth'),
+} : {
+  pythonUrl: 'https://github.com/indygreg/python-build-standalone/releases/download/20241002/cpython-3.10.15+20241002-x86_64-unknown-linux-gnu-install_only.tar.gz',
+  pythonFile: 'cpython-3.10.15-x86_64-linux.tar.gz',
+  pythonExe: path.join(RUNTIME_DIR, 'bin', 'python3'),
+  pipInstall: false,  // 自带 pip
+  libDir: null,
+  pthFile: null,
 }
 
-const MUGGLE_OCR_REPO = 'https://github.com/litongjava/muggle_ocr.git'
-
 // ============================================================
-// 工具函数
-// ============================================================
-function downloadFile(url, dest) {
+function download(url, dest, label) {
   return new Promise((resolve, reject) => {
-    const proto = url.startsWith('https') ? https : http
-    console.log(`  Downloading: ${url}`)
-    const file = createWriteStream(dest)
-    proto.get(url, (response) => {
-      if (response.statusCode === 302 || response.statusCode === 301) {
-        file.close()
-        fs.unlinkSync(dest)
-        return downloadFile(response.headers.location, dest).then(resolve).catch(reject)
+    if (fs.existsSync(dest)) { console.log(`  ✓ ${label} (cached)`); return resolve() }
+    console.log(`  ↓ ${label}`)
+    const file = fs.createWriteStream(dest)
+    https.get(url, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        file.close(); fs.unlinkSync(dest)
+        return download(res.headers.location, dest, label).then(resolve).catch(reject)
       }
-      if (response.statusCode !== 200) {
-        file.close()
-        fs.unlinkSync(dest)
-        return reject(new Error(`HTTP ${response.statusCode}`))
-      }
-      const total = parseInt(response.headers['content-length'] || '0', 10)
-      let downloaded = 0
-      response.on('data', (chunk) => {
-        downloaded += chunk.length
-        if (total > 0) process.stdout.write(`\r    ${Math.round(downloaded / total * 100)}% (${(downloaded / 1024 / 1024).toFixed(1)}MB)`)
-      })
-      response.pipe(file)
-      file.on('finish', () => {
-        file.close()
-        process.stdout.write('\n')
-        resolve()
-      })
+      const total = parseInt(res.headers['content-length'] || '0')
+      let done = 0
+      res.on('data', c => { done += c.length; if (total) process.stdout.write(`\r    ${Math.round(done/total*100)}%`) })
+      res.pipe(file)
+      file.on('finish', () => { file.close(); process.stdout.write('\n'); resolve() })
     }).on('error', reject)
   })
 }
 
-function exec(cmd, opts = {}) {
-  console.log(`  > ${cmd}`)
-  return execSync(cmd, { stdio: 'inherit', ...opts })
+function run(cmd, label) {
+  console.log(`  > ${label || cmd}`)
+  execSync(cmd, { cwd: PROJECT, stdio: 'inherit' })
 }
 
-// ============================================================
-// 主流程
 // ============================================================
 async function main() {
-  console.log(`\n=== Portable Python Runtime Setup (${PLATFORM}) ===\n`)
+  console.log(`\n=== muggle_ocr 部署 (${IS_WIN ? 'Windows' : 'Linux'}) ===\n`)
+  fs.mkdirSync(PYTHON_DIR, { recursive: true })
+  fs.mkdirSync(TEMP_DIR, { recursive: true })
 
-  // 0. 清理
-  if (process.argv.includes('--clean')) {
-    console.log('[0] Cleaning existing runtime...')
-    if (existsSync(RUNTIME_DIR)) rmSync(RUNTIME_DIR, { recursive: true })
-  }
+  // 1. 下载便携 Python
+  console.log('[1] 便携 Python')
+  await download(CONFIG.pythonUrl, path.join(PYTHON_DIR, CONFIG.pythonFile), CONFIG.pythonFile)
 
-  if (!existsSync(TEMP_DIR)) mkdirSync(TEMP_DIR, { recursive: true })
-
-  const cfg = PYTHON_DOWNLOADS[PLATFORM]
-  if (!cfg) {
-    console.error(`Unsupported platform: ${PLATFORM}`)
-    process.exit(1)
-  }
-
-  // 1. 检测现有的 Python
-  console.log('[1] Checking Python...')
-  let pythonExe = path.join(RUNTIME_DIR, cfg.exeName)
-  let hasPython = existsSync(pythonExe)
-
-  if (!hasPython) {
-    // 2. 下载 embeddable Python
-    console.log('[2] Downloading embeddable Python...')
-    const ext = PLATFORM === 'win32' ? '.zip' : '.tar.gz'
-    const archive = path.join(TEMP_DIR, `python-embed${ext}`)
-    if (!existsSync(archive)) {
-      await downloadFile(cfg.url, archive)
-    } else {
-      console.log('  Archive already exists, skipping download')
-    }
-
-    // 3. 解压
-    console.log('[3] Extracting Python...')
-    if (!existsSync(RUNTIME_DIR)) mkdirSync(RUNTIME_DIR, { recursive: true })
-    if (PLATFORM === 'win32') {
-      // Windows: PowerShell Expand-Archive
-      exec(`powershell -Command "Expand-Archive -Path '${archive}' -DestinationPath '${RUNTIME_DIR}' -Force"`)
-      // Enable pip for embeddable Python
-      const pythonPth = path.join(RUNTIME_DIR, 'python310._pth')
-      if (existsSync(pythonPth)) {
-        let content = fs.readFileSync(pythonPth, 'utf-8')
-        if (content.includes('#import site')) {
-          content = content.replace('#import site', 'import site')
-          fs.writeFileSync(pythonPth, content)
-        }
-      }
-      // Install pip
-      const getPipUrl = 'https://bootstrap.pypa.io/get-pip.py'
-      const getPipPath = path.join(TEMP_DIR, 'get-pip.py')
-      if (!existsSync(getPipPath)) await downloadFile(getPipUrl, getPipPath)
-      exec(`"${pythonExe}" "${getPipPath}" --no-warn-script-location`)
-    } else {
-      exec(`tar -xzf "${archive}" -C "${RUNTIME_DIR}" --strip-components=1`)
-    }
+  // 2. 解压
+  console.log('[2] 解压 Python')
+  if (fs.existsSync(CONFIG.pythonExe)) {
+    console.log('  ✓ 已解压')
   } else {
-    console.log('  Python already installed')
-  }
-
-  // 4. 安装 muggle_ocr 依赖
-  console.log('[4] Installing muggle_ocr dependencies...')
-  const pythonExe = path.join(RUNTIME_DIR, cfg.exeName)
-  const pipArgs = ['-m', 'pip', 'install', '--no-warn-script-location']
-
-  // 离线模式：从本地 whls 目录安装
-  if (process.argv.includes('--offline')) {
-    const whlsDir = path.resolve(__dirname, '../temp/whls')
-    if (existsSync(whlsDir)) {
-      console.log('  Offline mode: installing from ' + whlsDir)
-      exec(`"${pythonExe}" ${pipArgs.join(' ')} --no-index --find-links "${whlsDir}" numpy pillow opencv-python pyyaml tensorflow muggle_ocr`)
+    fs.mkdirSync(RUNTIME_DIR, { recursive: true })
+    if (IS_WIN) {
+      run(`powershell -Command "Expand-Archive '${path.join(PYTHON_DIR, CONFIG.pythonFile)}' '${RUNTIME_DIR}' -Force"`)
+      // 修改 _pth 启用 site
+      const pth = path.join(RUNTIME_DIR, 'python310._pth')
+      fs.writeFileSync(pth, 'python310.zip\n.\nLib\\site-packages\n\nimport site\n')
     } else {
-      console.error('  whls dir not found: ' + whlsDir)
-      process.exit(1)
+      run(`tar xzf "${path.join(PYTHON_DIR, CONFIG.pythonFile)}" -C "${RUNTIME_DIR}" --strip-components=1`)
     }
+    console.log('  ✓ 解压完成')
+  }
+
+  // 3. pip
+  if (CONFIG.pipInstall) {
+    console.log('[3] 安装 pip')
+    await download('https://bootstrap.pypa.io/get-pip.py', path.join(PYTHON_DIR, 'get-pip.py'), 'get-pip.py')
+    run(`"${CONFIG.pythonExe}" "${path.join(PYTHON_DIR, 'get-pip.py')}" --no-warn-script-location`)
   } else {
-    // 在线模式
-    exec(`"${pythonExe}" ${pipArgs.join(' ')} numpy pillow opencv-python pyyaml tensorflow`)
-    const muggleDir = path.join(TEMP_DIR, 'muggle_ocr')
-    if (!existsSync(muggleDir)) {
-      exec(`git clone --depth 1 ${MUGGLE_OCR_REPO} "${muggleDir}"`)
+    console.log('[3] 升级 pip')
+    run(`"${CONFIG.pythonExe}" -m pip install --upgrade pip -i ${PIP_MIRROR}`)
+  }
+
+  // 4. 下载 whl
+  console.log('[4] 下载 whl（国内源，耐心等待）')
+  fs.mkdirSync(WHLS_DIR, { recursive: true })
+  // 清旧 whl
+  for (const f of fs.readdirSync(WHLS_DIR)) { if (f.endsWith('.whl')) fs.unlinkSync(path.join(WHLS_DIR, f)) }
+  run(`"${CONFIG.pythonExe}" -m pip download -d "${WHLS_DIR}" -i ${PIP_MIRROR} numpy pillow opencv-python pyyaml tensorflow`)
+
+  // 5. muggle_ocr → whl
+  console.log('[5] 打包 muggle_ocr')
+  const muggleDir = path.join(TEMP_DIR, 'muggle_ocr')
+  const muggleZip = path.join(PROJECT, 'resources', 'muggle_ocr-main.zip')
+
+  if (!fs.existsSync(muggleZip)) {
+    console.log('  ⚠ muggle_ocr-main.zip 未找到，跳过打包')
+    console.log('  请将 muggle_ocr 源码 zip 放到 resources/muggle_ocr-main.zip')
+    return  // skip pip wheel below
+  }
+
+  // 清掉上次失败残留，重新解压
+  if (fs.existsSync(muggleDir)) {
+    fs.rmSync(muggleDir, { recursive: true, force: true })
+  }
+  run(IS_WIN
+    ? `powershell -Command "Expand-Archive '${muggleZip}' '${muggleDir}' -Force"`
+    : `unzip -o "${muggleZip}" -d "${muggleDir}"`)
+
+  // GitHub zip 解压后多一层目录（如 muggle_ocr-main/），上移内容
+  const topEntries = fs.readdirSync(muggleDir).filter(f => !f.startsWith('.'))
+  if (topEntries.length === 1 && fs.statSync(path.join(muggleDir, topEntries[0])).isDirectory()) {
+    const nested = path.join(muggleDir, topEntries[0])
+    for (const f of fs.readdirSync(nested)) {
+      fs.renameSync(path.join(nested, f), path.join(muggleDir, f))
     }
-    exec(`"${pythonExe}" -m pip install "${muggleDir}"`)
+    fs.rmdirSync(nested)
+    console.log('  ✓ 已展开嵌套目录')
   }
 
-  // 5. 验证
-  console.log('[5] Verifying...')
-  try {
-    execSync(`"${pythonExe}" -c "import muggle_ocr; s=muggle_ocr.SDK(model_type=muggle_ocr.ModelType.Captcha); print('muggle_ocr OK')"`, { stdio: 'pipe' })
-    console.log('  ✓ muggle_ocr working!')
-  } catch (e) {
-    console.error('  ✗ muggle_ocr verification failed:', e.message)
-    console.error('  This may be OK if TensorFlow needs platform-specific setup.')
-  }
+  run(`"${CONFIG.pythonExe}" -m pip wheel -w "${WHLS_DIR}" "${muggleDir}"`)
 
-  console.log(`\n=== Done! Runtime at: ${RUNTIME_DIR} ===`)
-  console.log(`Python: ${pythonExe}`)
-  console.log(`Size: ${getDirSize(RUNTIME_DIR)}`)
-}
-
-function getDirSize(dir) {
-  if (!existsSync(dir)) return 'N/A'
-  let size = 0
-  function walk(d) {
-    for (const f of fs.readdirSync(d, { withFileTypes: true })) {
-      if (f.isDirectory()) walk(path.join(d, f.name))
-      else size += fs.statSync(path.join(d, f.name)).size
-    }
-  }
-  walk(dir)
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
+  console.log('\n=== 完成 ===')
+  console.log(`whls: ${WHLS_DIR}`)
+  console.log(`python: ${CONFIG.pythonExe}`)
 }
 
 main().catch(e => { console.error(e); process.exit(1) })

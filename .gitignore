@@ -92,8 +92,7 @@ resources/python-runtime/
 resources/python/*.whl
 resources/python/whls/
 resources/python/get-pip.py
-resources/python/muggle_ocr-main.zip
-resources/python/muggle_ocr/
+resources/muggle_ocr-main.zip
 
 # Temp files (build intermediates)
 temp/
