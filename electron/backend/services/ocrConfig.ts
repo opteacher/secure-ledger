@@ -100,40 +100,42 @@ function getBundledPythonPath(): string | null {
     const { existsSync } = require('fs')
     const { app } = require('electron')
 
+    const isWin = process.platform === 'win32'
+    const pyExe = isWin ? 'python.exe' : 'bin/python3'
+
     // 1. 开发模式: 项目根 resources/python-runtime/
-    const fromDev = resolve(__dirname, '../resources/python-runtime/python.exe')
+    const fromDev = resolve(__dirname, '../../../resources/python-runtime', pyExe)
     if (existsSync(fromDev)) return fromDev
 
     // 2. 打包后: 检查 app 目录 / userData，都没有则从素材自动部署
     if (app?.isPackaged) {
-      const appRuntime = join(process.resourcesPath, '..', 'resources', 'python-runtime', process.platform === 'win32' ? 'python.exe' : 'python3')
+      const appRuntime = join(process.resourcesPath, '..', 'resources', 'python-runtime', pyExe)
       if (existsSync(appRuntime)) return appRuntime
 
-      const userDataRuntime = join(app.getPath('userData'), 'python-runtime', process.platform === 'win32' ? 'python.exe' : 'python3')
+      const userDataRuntime = join(app.getPath('userData'), 'python-runtime', pyExe)
       if (existsSync(userDataRuntime)) return userDataRuntime
 
       // 以上都没有 → 从安装包素材自动部署到 userData（仅一次）
-      const pythonZip = join(process.resourcesPath, 'python', 'python-3.10.11-embed-amd64.zip')
-      const getPip = join(process.resourcesPath, 'python', 'get-pip.py')
+      const pythonArchive = join(process.resourcesPath, 'python',
+        isWin ? 'python-3.10.11-embed-amd64.zip' : 'cpython-3.10.15-x86_64-linux.tar.gz')
       const whlsDir = join(process.resourcesPath, 'python', 'whls')
-      if (existsSync(pythonZip) && existsSync(whlsDir)) {
+      if (existsSync(pythonArchive) && existsSync(whlsDir)) {
         try {
           const { execSync } = require('child_process')
           const userDataDir = join(app.getPath('userData'), 'python-runtime')
-          const userDataPython = join(userDataDir, process.platform === 'win32' ? 'python.exe' : 'python3')
+          const userDataPython = join(userDataDir, pyExe)
           require('fs').mkdirSync(userDataDir, { recursive: true })
 
-          if (process.platform === 'win32') {
-            execSync(`powershell -Command "Expand-Archive -Path '${pythonZip}' -DestinationPath '${userDataDir}' -Force"`, { stdio: 'ignore', timeout: 60000 })
+          if (isWin) {
+            execSync(`powershell -Command "Expand-Archive -Path '${pythonArchive}' -DestinationPath '${userDataDir}' -Force"`, { stdio: 'ignore', timeout: 60000 })
+            const pthFile = join(userDataDir, 'python310._pth')
+            require('fs').writeFileSync(pthFile, 'python310.zip\n.\nLib/site-packages\n\nimport site\n')
+            const getPip = join(process.resourcesPath, 'python', 'get-pip.py')
+            if (existsSync(getPip)) {
+              execSync(`"${userDataPython}" "${getPip}" --no-warn-script-location`, { stdio: 'ignore', timeout: 60000 })
+            }
           } else {
-            execSync(`unzip -qo "${pythonZip}" -d "${userDataDir}"`, { stdio: 'ignore', timeout: 60000 })
-          }
-
-          const pthFile = join(userDataDir, 'python310._pth')
-          require('fs').writeFileSync(pthFile, 'python310.zip\n.\nLib/site-packages\n\nimport site\n')
-
-          if (existsSync(getPip)) {
-            execSync(`"${userDataPython}" "${getPip}" --no-warn-script-location`, { stdio: 'ignore', timeout: 60000 })
+            execSync(`tar xzf "${pythonArchive}" -C "${userDataDir}" --strip-components=1`, { stdio: 'ignore', timeout: 60000 })
           }
           execSync(`"${userDataPython}" -m pip install --no-index --find-links "${whlsDir}" numpy pillow opencv-python pyyaml tensorflow muggle_ocr`, { stdio: 'ignore', timeout: 300000 })
 
