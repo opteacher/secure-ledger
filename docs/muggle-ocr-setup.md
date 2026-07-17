@@ -25,9 +25,9 @@ npm run build:linux:deb   # Linux .deb
 npm run build:linux:tar   # Linux tar.gz
 ```
 
-构建时 `prepare-build.js` 自动完成：解压 Python → pip → 国内源下载 whl → 打包 muggle_ocr → 复制到安装包。
+构建时 `prepare-build.js` 自动完成：解压 Python → 下载 `get-pip.py` → 离线引导 pip → 国内源下载所有 whl（含 pip/setuptools/wheel + numpy/pillow/opencv-python/pyyaml/tensorflow）→ 打包 muggle_ocr → 复制到安装包。
 
-> 构建机需联网（下载 whl）。内网构建机可从外网机器拷贝 `resources/python/whls/`。
+> 构建机需联网（下载 whl）。构建完成的安装包**全离线部署**，目标机无需联网。
 
 ## 安装时自动部署
 

@@ -77,12 +77,18 @@ export function getMugglePythonPath(): string | null {
   try {
     const { execSync } = require('child_process')
     const pythonCmd = getPythonCommand()
-    if (!pythonCmd) return null
+    if (!pythonCmd) {
+      console.log('[muggle_ocr] Python 未找到')
+      return null
+    }
 
-    execSync(`"${pythonCmd}" -c "import muggle_ocr"`, { timeout: 5000, stdio: 'ignore' })
+    console.log(`[muggle_ocr] 检测: ${pythonCmd} -c "import muggle_ocr"`)
+    execSync(`"${pythonCmd}" -c "import muggle_ocr"`, { timeout: 60000, stdio: 'ignore' })
     _mugglePythonPathCache = { path: pythonCmd, ts: Date.now() }
+    console.log('[muggle_ocr] 可用:', pythonCmd)
     return pythonCmd
-  } catch {
+  } catch (err: any) {
+    console.warn('[muggle_ocr] 不可用:', err.message || err)
     return null
   }
 }
@@ -103,7 +109,11 @@ function getBundledPythonPath(): string | null {
     const isWin = process.platform === 'win32'
     const pyExe = isWin ? 'python.exe' : 'bin/python3'
 
-    // 1. 开发模式: 项目根 resources/python-runtime/
+    // 1. 开发模式 — 两套路径（__dirname 取决于是否编译到 dist-electron/）
+    // Bundled: __dirname=dist-electron/
+    const fromBundle = resolve(__dirname, '../resources/python-runtime', pyExe)
+    if (existsSync(fromBundle)) return fromBundle
+    // Unbundled: __dirname=electron/backend/services/
     const fromDev = resolve(__dirname, '../../../resources/python-runtime', pyExe)
     if (existsSync(fromDev)) return fromDev
 
@@ -132,10 +142,19 @@ function getBundledPythonPath(): string | null {
             require('fs').writeFileSync(pthFile, 'python310.zip\n.\nLib/site-packages\n\nimport site\n')
             const getPip = join(process.resourcesPath, 'python', 'get-pip.py')
             if (existsSync(getPip)) {
-              execSync(`"${userDataPython}" "${getPip}" --no-warn-script-location`, { stdio: 'ignore', timeout: 60000 })
+              execSync(`"${userDataPython}" "${getPip}" --no-index --find-links "${whlsDir}" --no-warn-script-location`, { stdio: 'ignore', timeout: 60000 })
             }
           } else {
             execSync(`tar xzf "${pythonArchive}" -C "${userDataDir}" --strip-components=1`, { stdio: 'ignore', timeout: 60000 })
+            // cpython-standalone install_only 无 pip，离线引导
+            try {
+              execSync(`"${userDataPython}" -m ensurepip --default-pip`, { stdio: 'ignore', timeout: 30000 })
+            } catch {
+              const getPip = join(process.resourcesPath, 'python', 'get-pip.py')
+              if (existsSync(getPip)) {
+                execSync(`"${userDataPython}" "${getPip}" --no-index --find-links "${whlsDir}" --no-warn-script-location`, { stdio: 'ignore', timeout: 60000 })
+              }
+            }
           }
           execSync(`"${userDataPython}" -m pip install --no-index --find-links "${whlsDir}" numpy pillow opencv-python pyyaml tensorflow muggle_ocr`, { stdio: 'ignore', timeout: 300000 })
 

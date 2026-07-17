@@ -259,17 +259,27 @@ function setupPythonRuntime(targetPlatform) {
     console.log('  ✓ 解压完成')
   }
 
-  // 2. pip
-  if (isWin) {
-    const getPip = path.join(PYTHON_SRC, 'get-pip.py')
-    if (!fs.existsSync(getPip)) {
-      console.log('  ⚠ get-pip.py 未找到，放入 resources/python/get-pip.py')
+  // 2. pip（install_only 不带 pip，需引导）
+  const getPipPath = path.join(PYTHON_SRC, 'get-pip.py')
+  if (!fs.existsSync(getPipPath)) {
+    // 自动下载 get-pip.py
+    console.log('  下载 get-pip.py...')
+    try {
+      require('child_process').execSync(
+        `"${pythonExe}" -c "import urllib.request; urllib.request.urlretrieve('https://bootstrap.pypa.io/get-pip.py', '${getPipPath.replace(/\\/g, '\\\\')}')"`,
+        { stdio: 'inherit', timeout: 30000 }
+      )
+    } catch {
+      console.log('  ⚠ get-pip.py 下载失败，请手动放入 resources/python/get-pip.py')
       console.log('========================================\n')
       return
     }
-    require('child_process').execSync(`"${pythonExe}" "${getPip}" --no-warn-script-location`, { stdio: 'inherit' })
+  }
+  if (isWin) {
+    require('child_process').execSync(`"${pythonExe}" "${getPipPath}" --no-warn-script-location`, { stdio: 'inherit' })
   } else {
-    require('child_process').execSync(`"${pythonExe}" -m pip install --upgrade pip -q`, { stdio: 'ignore' })
+    // cpython-standalone install_only 无 pip，用 get-pip.py 引导
+    require('child_process').execSync(`"${pythonExe}" "${getPipPath}" --no-warn-script-location`, { stdio: 'inherit' })
   }
 
   // 3. 下载 whl（国内源，解析目标平台依赖）
@@ -277,7 +287,7 @@ function setupPythonRuntime(targetPlatform) {
   fs.mkdirSync(WHLS_DIR, { recursive: true })
   for (const f of fs.readdirSync(WHLS_DIR)) { if (f.endsWith('.whl')) fs.unlinkSync(path.join(WHLS_DIR, f)) }
   require('child_process').execSync(
-    `"${pythonExe}" -m pip download -d "${WHLS_DIR}" -i ${PIP_MIRROR} numpy pillow opencv-python pyyaml tensorflow`,
+    `"${pythonExe}" -m pip download -d "${WHLS_DIR}" -i ${PIP_MIRROR} pip setuptools wheel numpy pillow opencv-python pyyaml tensorflow`,
     { stdio: 'inherit' }
   )
 
@@ -310,9 +320,15 @@ function setupPythonRuntime(targetPlatform) {
     console.log('  ✓ 已展开嵌套目录')
   }
 
-  require('child_process').execSync(`"${pythonExe}" -m pip wheel -w "${WHLS_DIR}" "${muggleDir}"`, { stdio: 'inherit' })
+  require('child_process').execSync(`"${pythonExe}" -m pip wheel -w "${WHLS_DIR}" --no-index --find-links "${WHLS_DIR}" "${muggleDir}"`, { stdio: 'inherit' })
 
-  console.log('  ✓ muggle_ocr whls 就绪')
+  // 5. 安装到 runtime（开发模式需要，否则 import muggle_ocr 失败）
+  console.log('  安装到 runtime...')
+  require('child_process').execSync(
+    `"${pythonExe}" -m pip install --no-index --find-links "${WHLS_DIR}" numpy pillow opencv-python pyyaml tensorflow muggle_ocr`,
+    { stdio: 'inherit', timeout: 300000 }
+  )
+  console.log('  ✓ muggle_ocr 已安装到 runtime')
   console.log('========================================\n')
 }
 
@@ -324,8 +340,8 @@ const PYTHON_DST = path.join(PROJECT_ROOT, 'dist-electron', 'python-resources')
 console.log('\n复制 Python 素材到 dist-electron/')
 if (!fs.existsSync(PYTHON_DST)) fs.mkdirSync(PYTHON_DST, { recursive: true })
 
-const copyItems = ['whls', 'muggleOCR.py']
-if (targetPlatform === 'win32') copyItems.push('get-pip.py', 'python-3.10.11-embed-amd64.zip')
+const copyItems = ['whls', 'muggleOCR.py', 'get-pip.py']
+if (targetPlatform === 'win32') copyItems.push('python-3.10.11-embed-amd64.zip')
 if (targetPlatform === 'linux') copyItems.push('cpython-3.10.15-x86_64-linux.tar.gz')
 
 for (const item of copyItems) {

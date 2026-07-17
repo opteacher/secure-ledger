@@ -107,7 +107,7 @@ async function main() {
   fs.mkdirSync(WHLS_DIR, { recursive: true })
   // 清旧 whl
   for (const f of fs.readdirSync(WHLS_DIR)) { if (f.endsWith('.whl')) fs.unlinkSync(path.join(WHLS_DIR, f)) }
-  run(`"${CONFIG.pythonExe}" -m pip download -d "${WHLS_DIR}" -i ${PIP_MIRROR} numpy pillow opencv-python pyyaml tensorflow`)
+  run(`"${CONFIG.pythonExe}" -m pip download -d "${WHLS_DIR}" -i ${PIP_MIRROR} pip setuptools wheel numpy pillow opencv-python pyyaml tensorflow`)
 
   // 5. muggle_ocr → whl
   console.log('[5] 打包 muggle_ocr')
@@ -139,7 +139,11 @@ async function main() {
     console.log('  ✓ 已展开嵌套目录')
   }
 
-  run(`"${CONFIG.pythonExe}" -m pip wheel -w "${WHLS_DIR}" "${muggleDir}"`)
+  run(`"${CONFIG.pythonExe}" -m pip wheel -w "${WHLS_DIR}" --no-index --find-links "${WHLS_DIR}" "${muggleDir}"`)
+
+  // 6. 安装到 runtime（开发调试需要）
+  console.log('[6] 安装到 runtime')
+  run(`"${CONFIG.pythonExe}" -m pip install --no-index --find-links "${WHLS_DIR}" numpy pillow opencv-python pyyaml tensorflow muggle_ocr`)
 
   console.log('\n=== 完成 ===')
   console.log(`whls: ${WHLS_DIR}`)

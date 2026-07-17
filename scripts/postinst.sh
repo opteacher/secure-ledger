@@ -65,28 +65,67 @@ fi
 WHLS_DIR="$APP_DIR/resources/python/whls"
 RUNTIME_DIR="$APP_DIR/resources/python-runtime"
 PYTHON_TAR="$APP_DIR/resources/python/cpython-3.10.15-x86_64-linux.tar.gz"
+LOG_FILE="$APP_DIR/muggle-deploy.log"
 
-# 解压便携 Python（如不存在）
-if [ ! -f "$RUNTIME_DIR/bin/python3" ] && [ -f "$PYTHON_TAR" ]; then
-    mkdir -p "$RUNTIME_DIR"
-    tar xzf "$PYTHON_TAR" -C "$RUNTIME_DIR" --strip-components=1 2>/dev/null
-fi
+log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"; }
 
-PYTHON="$RUNTIME_DIR/bin/python3"
-[ -f "$PYTHON" ] || PYTHON=$(command -v python3)
-
-if [ -d "$WHLS_DIR" ] && ls "$WHLS_DIR"/*.whl &>/dev/null && [ -n "$PYTHON" ]; then
+if [ -f "$PYTHON_TAR" ] && [ -d "$WHLS_DIR" ] && ls "$WHLS_DIR"/*.whl >/dev/null 2>&1; then
     echo ""
     echo "========================================"
     echo " 部署 muggle_ocr"
     echo "========================================"
 
-    "$PYTHON" -m pip --version &>/dev/null || "$PYTHON" -m ensurepip 2>/dev/null || apt-get install -y -qq python3-pip 2>/dev/null
-    "$PYTHON" -m pip install --no-index --find-links "$WHLS_DIR" numpy pillow opencv-python pyyaml tensorflow muggle_ocr 2>/dev/null
-    if "$PYTHON" -c "import muggle_ocr" 2>/dev/null; then
-        echo "✓ muggle_ocr 安装成功"
+    # 清掉旧残留，避免 ocrConfig.ts 找到空壳 Python
+    rm -rf "$RUNTIME_DIR"
+    mkdir -p "$RUNTIME_DIR"
+
+    # 解压便携 Python
+    log "解压 Python..."
+    if tar xzf "$PYTHON_TAR" -C "$RUNTIME_DIR" --strip-components=1 2>>"$LOG_FILE"; then
+        log "Python 解压成功"
     else
-        echo "⚠ muggle_ocr 安装失败，使用 Tesseract.js"
+        log "ERROR: Python 解压失败"
+        echo "⚠ Python 解压失败，详见 $LOG_FILE"
+        exit 0
+    fi
+
+    PYTHON="$RUNTIME_DIR/bin/python3"
+
+    # 引导 pip（cpython-standalone install_only 不带 pip，全离线）
+    if ! "$PYTHON" -m pip --version >/dev/null 2>&1; then
+        log "引导 pip（离线）..."
+        # 1. 先试 ensurepip（Python 内置，纯离线）
+        if "$PYTHON" -m ensurepip --default-pip 2>>"$LOG_FILE"; then
+            log "ensurepip 成功"
+        # 2. 回退 get-pip.py + 本地 pip whl
+        elif [ -f "$APP_DIR/resources/python/get-pip.py" ]; then
+            "$PYTHON" "$APP_DIR/resources/python/get-pip.py" --no-index --find-links "$WHLS_DIR" --no-warn-script-location 2>>"$LOG_FILE" || {
+                log "ERROR: get-pip.py 失败"
+            }
+        else
+            log "ERROR: 无法引导 pip（无 ensurepip，无 get-pip.py）"
+            echo "⚠ pip 引导失败，详见 $LOG_FILE"
+            exit 0
+        fi
+    fi
+
+    # 安装 whl
+    log "安装依赖 ($(ls "$WHLS_DIR"/*.whl 2>/dev/null | wc -l) whls)..."
+    if "$PYTHON" -m pip install --no-index --find-links "$WHLS_DIR" numpy pillow opencv-python pyyaml tensorflow muggle_ocr 2>>"$LOG_FILE"; then
+        log "pip install 成功"
+    else
+        log "ERROR: pip install 失败"
+        echo "⚠ pip install 失败，详见 $LOG_FILE"
+        exit 0
+    fi
+
+    # 验证
+    if "$PYTHON" -c "import muggle_ocr" 2>>"$LOG_FILE"; then
+        log "muggle_ocr 导入成功"
+        echo "✓ muggle_ocr 部署完成"
+    else
+        log "ERROR: import muggle_ocr 失败"
+        echo "⚠ muggle_ocr 导入失败，详见 $LOG_FILE"
     fi
 else
     echo "ℹ muggle_ocr 素材未打包，跳过"
