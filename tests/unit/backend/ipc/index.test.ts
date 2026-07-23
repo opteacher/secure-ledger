@@ -39,7 +39,7 @@ vi.mock('../../../../electron/backend/services/appLock', () => ({
 vi.mock('../../../../electron/backend/services/browserInstance', () => ({ checkBrowserInstance: vi.fn() }))
 vi.mock('../../../../electron/backend/services/keyRotation', () => ({ rotateKeys: vi.fn(), getRotationStatus: vi.fn(), startScheduledRotation: vi.fn(), stopScheduledRotation: vi.fn() }))
 vi.mock('../../../../electron/backend/services/captcha', () => ({ recognize: vi.fn(), shutdownOcr: vi.fn() }))
-vi.mock('../../../../electron/backend/services/ocrConfig', () => ({ getOcrMethod: vi.fn(() => 'tesseract'), setOcrMethod: vi.fn(), getOcrConfig: vi.fn(() => ({ method: 'tesseract', muggleAvailable: false, mugglePythonPath: null })) }))
+vi.mock('../../../../electron/backend/services/ocrConfig', () => ({ getOcrMethod: vi.fn(() => 'tesseract'), setOcrMethod: vi.fn(), getOcrConfig: vi.fn(() => ({ method: 'tesseract', muggleAvailable: false, mugglePythonPath: null, muggleDiagnostics: null })) }))
 vi.mock('../../../../electron/backend/crypto/secureKeyStorage', () => ({ isEncryptionAvailable: vi.fn(), generateKeys: vi.fn(), loadKeys: vi.fn(), getStatus: vi.fn(), deleteKeys: vi.fn() }))
 vi.mock('../../../../electron/backend/services/endpointShare', () => ({
   generateShareToken: vi.fn(), importEndpointFromToken: vi.fn(), checkTokenPermission: vi.fn(),

@@ -8,8 +8,14 @@
   "files": [
     "dist/**/*",
     "dist-electron/**/*",
+    "!dist-electron/python-resources/**",
     "public/**/*",
-    "resources/**/*"
+    "resources/**/*",
+    "!resources/python-runtime/**",
+    "!resources/python/**",
+    "!resources/tessdata/**",
+    "!resources/muggle_ocr/**",
+    "!resources/muggle_ocr-main.zip"
   ],
   "asar": true,
   "asarUnpack": [

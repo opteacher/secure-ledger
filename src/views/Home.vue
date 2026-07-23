@@ -371,7 +371,7 @@
                     </div>
                   </div>
                   <p v-if="!ocrConfig?.muggleAvailable" class="text-xs text-amber-600 dark:text-amber-400 mt-2">
-                    muggle_ocr 不可用 — 请安装 Python 和 muggle_ocr 包
+                    {{ ocrConfig?.muggleDiagnostics || 'muggle_ocr 不可用 — 请安装 Python 和 muggle_ocr 包' }}
                   </p>
                 </div>
               </div>

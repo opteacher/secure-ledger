@@ -169,6 +169,7 @@ export interface OcrConfig {
   method: 'tesseract' | 'muggle'
   muggleAvailable: boolean
   mugglePythonPath: string | null
+  muggleDiagnostics: string | null
 }
 
 export const captchaApi = {
