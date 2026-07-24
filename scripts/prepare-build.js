@@ -314,7 +314,12 @@ function setupPythonRuntime(targetPlatform) {
   if (topEntries.length === 1 && fs.statSync(path.join(muggleDir, topEntries[0])).isDirectory()) {
     const nested = path.join(muggleDir, topEntries[0])
     for (const f of fs.readdirSync(nested)) {
-      fs.renameSync(path.join(nested, f), path.join(muggleDir, f))
+      const src = path.join(nested, f)
+      const dst = path.join(muggleDir, f)
+      try { fs.renameSync(src, dst) } catch {
+        fs.cpSync(src, dst, { recursive: true })
+        fs.rmSync(src, { recursive: true, force: true })
+      }
     }
     fs.rmdirSync(nested)
     console.log('  ✓ 已展开嵌套目录')

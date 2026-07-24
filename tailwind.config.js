@@ -69,9 +69,9 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Poppins', 'Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace']
+        sans: ['MiSans', 'system-ui', 'sans-serif'],
+        display: ['MiSans', 'system-ui', 'sans-serif'],
+        mono: ['MiSans', 'monospace']
       },
       boxShadow: {
         'soft': '0 2px 8px -2px rgba(0, 0, 0, 0.05), 0 4px 16px -4px rgba(0, 0, 0, 0.1)',

@@ -26,7 +26,7 @@ secure-ledger/
 │   ├── apis/                 # IPC client wrappers
 │   ├── stores/               # Pinia state (endpoint, account)
 │   ├── views/                # 5 page views (Home, Login, Setup...)
-│   ├── components/           # 9 Vue components
+│   ├── components/           # 12 Vue components
 │   └── router/               # Vue Router config
 ├── scripts/                  # Build prep, test user creation
 ├── public/                   # Static assets, icons
@@ -46,6 +46,8 @@ secure-ledger/
 | Add Vue component | `src/components/` | Tailwind styling, no scoped CSS |
 | Add page view | `src/views/` | Router entry in `src/router/index.ts` |
 | Database schema change | `electron/backend/database/init.ts` | Add migration in `initTables()` |
+| Add endpoint icon | `src/components/IconPickerModal.vue` / `IconEditor.vue` / `EndpointIcon.vue` | Modal picker (Ant Design + Iconfont + upload) → editor → display |
+| Add endpoint grouping | `src/views/Home.vue` (groupedEndpoints computed + DnD) / EndpointEdit.vue (datalist combo) | `group_name` column on endpoint table |
 | Add captcha recognition | `electron/backend/services/captcha.ts` | Uses Tesseract.js + sharp + optional muggle_ocr |
 | Resolve template variables | `electron/backend/services/templateVars.ts` | `{{key}}` substitution in slot values |
 | Change OCR method | `electron/backend/services/ocrConfig.ts` | `system_config` key `ocr_method` |

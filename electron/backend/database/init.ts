@@ -14,6 +14,8 @@ export interface Endpoint {
   name: string
   icon: string
   login_type: 'web' | 'ssh'
+  group_name: string
+  display_order: number
   share_token: string  // JWT token for shared endpoints (empty = normal)
   created_at: string
   updated_at: string
@@ -62,6 +64,8 @@ export function initTables(): void {
       name TEXT NOT NULL,
       icon TEXT DEFAULT '',
       login_type TEXT CHECK(login_type IN ('web', 'ssh')) DEFAULT 'web',
+      group_name TEXT DEFAULT '',
+      display_order REAL DEFAULT 0,
       share_token TEXT DEFAULT '',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -265,6 +269,16 @@ export function initTables(): void {
   // 迁移：endpoint 表添加分享 token 字段
   try {
     run(`ALTER TABLE endpoint ADD COLUMN share_token TEXT DEFAULT ''`)
+  } catch {}
+
+  // 迁移：endpoint 表添加分组字段
+  try {
+    run(`ALTER TABLE endpoint ADD COLUMN group_name TEXT DEFAULT ''`)
+  } catch {}
+
+  // 迁移：endpoint 表添加排序字段
+  try {
+    run(`ALTER TABLE endpoint ADD COLUMN display_order REAL DEFAULT 0`)
   } catch {}
 
   // ─── v1.0 层级密钥表 ───

@@ -33,12 +33,12 @@
             </button>
           </div>
         </div>
-        <button v-if="loginType === 'web'" @click="addPage" class="sidebar-item text-fg-muted hover:text-fg-primary mt-2">
+        <div v-if="loginType === 'web'" @click="addPage" class="sidebar-item text-fg-muted hover:text-fg-primary mt-2 cursor-pointer">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
           <span>添加步骤页</span>
-        </button>
+        </div>
       </div>
     </aside>
 
@@ -47,8 +47,21 @@
       <!-- Header -->
       <header class="bg-surface-card/80 backdrop-blur-md border-b border-surface">
         <div class="px-8 py-3 flex items-center justify-between">
-          <input v-model="endpointName" type="text" class="text-lg font-semibold bg-transparent border-none focus:ring-0 p-0 text-fg-primary placeholder:text-fg-muted" placeholder="登录端名称" />
+          <div class="flex items-center gap-3">
+            <IconEditor v-model:iconValue="endpointIcon" :name="endpointName" />
+            <input v-model="endpointName" type="text" class="text-lg font-semibold bg-transparent border-none focus:ring-0 p-0 text-fg-primary placeholder:text-fg-muted" placeholder="登录端名称" />
+          </div>
           <div class="flex items-center gap-2">
+            <input
+              v-model="endpointGroup"
+              type="text"
+              list="group-list"
+              class="bg-surface-input border border-surface text-sm rounded-lg px-3 py-1.5 w-40 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 transition-colors"
+              placeholder="填入分组（可选）"
+            />
+            <datalist id="group-list">
+              <option v-for="g in existingGroups" :key="g" :value="g" />
+            </datalist>
             <select v-model="loginType" class="bg-surface-input border-surface text-sm rounded-lg px-3 py-1.5">
               <option value="web">网页登录</option>
               <option value="ssh">SSH登录</option>
@@ -356,7 +369,7 @@ class="group flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-p
                         <span class="text-fg-muted text-[10px]">后续用 <code>{<!-- -->{<!-- -->key}}</code> 引用</span>
                       </div>
                       <div class="flex gap-2 items-center">
-                        <label class="flex items-center gap-1 text-fg-muted">
+                        <label v-if="slot.action_type === 'input'" class="flex items-center gap-1 text-fg-muted">
                           <input v-model="slot.is_encrypted" type="checkbox" class="rounded" @change="onSlotEncryptedChange(slot)" />
                           加密
                         </label>
@@ -473,9 +486,10 @@ class="group flex items-center gap-2 px-2 py-1 rounded cursor-pointer hover:bg-p
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useEndpointStore } from '../stores/endpoint'
-import { pageApi, slotApi, sshApi, captchaApi, type Page, type Slot } from '../apis'
+import { pageApi, slotApi, sshApi, captchaApi, endpointApi, type Page, type Slot } from '../apis'
 import { safeConfirm, messageError, messageInfo, messageWarning } from '../utils/dialog'
 import { buildWaitAndActJs, type WebviewActionType } from '../utils/webview-execution'
+import IconEditor from '../components/IconEditor.vue'
 
 interface PageElement {
   xpath: string
@@ -501,6 +515,9 @@ const endpointId = computed(() => isNew.value ? null : Number(route.params.id))
 
 const endpointName = ref('')
 const loginType = ref<'web' | 'ssh'>('web')
+const endpointIcon = ref('')
+const endpointGroup = ref('')
+const existingGroups = ref<string[]>([])
 const pages = ref<(Page & { slots: Slot[] })[]>([])
 const selectedPageId = ref<number | null>(null)
 const saving = ref(false)
@@ -746,11 +763,16 @@ async function disconnectSSH() {
 }
 
 onMounted(async () => {
+  // 加载已有分组列表
+  try { existingGroups.value = await endpointApi.getGroups() } catch {}
+
   if (!isNew.value && endpointId.value) {
     const endpoint = await endpointStore.loadEndpoint(endpointId.value)
     if (endpoint) {
       endpointName.value = endpoint.name
       loginType.value = endpoint.login_type
+      endpointIcon.value = endpoint.icon || ''
+      endpointGroup.value = endpoint.group_name || ''
       pages.value = endpoint.pages
       if (pages.value.length > 0) {
         selectedPageId.value = pages.value[0].id
@@ -1314,7 +1336,7 @@ async function handleSave() {
     }
     
     if (isNew.value) {
-      const endpoint = await endpointStore.createEndpoint({ name: endpointName.value, login_type: loginType.value })
+      const endpoint = await endpointStore.createEndpoint({ name: endpointName.value, login_type: loginType.value, icon: endpointIcon.value, group_name: endpointGroup.value })
       if (endpoint) {
         for (const page of pages.value) {
           const createdPage = await pageApi.create({ endpoint_id: endpoint.id, url: page.url })
@@ -1332,7 +1354,7 @@ async function handleSave() {
         router.push('/home')
       }
     } else {
-      await endpointStore.updateEndpoint(endpointId.value!, { name: endpointName.value, login_type: loginType.value })
+      await endpointStore.updateEndpoint(endpointId.value!, { name: endpointName.value, login_type: loginType.value, icon: endpointIcon.value, group_name: endpointGroup.value })
       for (const page of pages.value) {
         if (page.id < 0) {
           const createdPage = await pageApi.create({ endpoint_id: endpointId.value!, url: page.url })
@@ -1361,7 +1383,8 @@ async function handleSave() {
               action_type: slot.action_type, 
               value: slot.value, 
               is_encrypted: slot.is_encrypted, 
-              timeout: slot.timeout
+              timeout: slot.timeout,
+              output_key: slot.output_key
             })
           }
         }

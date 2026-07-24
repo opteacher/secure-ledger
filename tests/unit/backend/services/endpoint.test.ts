@@ -29,11 +29,12 @@ import {
   deleteEndpoint,
   exportEndpoints,
   importEndpoints,
+  listDistinctGroups,
 } from '../../../../electron/backend/services/endpoint'
 
 function makeEndpoint(o: Record<string, unknown> = {}) {
   return {
-    id: 1, name: '测试', icon: '', login_type: 'web' as const, share_token: '',
+    id: 1, name: '测试', icon: '', login_type: 'web' as const, group_name: '', display_order: 0, share_token: '',
     created_at: '2024-01-01T00:00:00.000Z', updated_at: '2024-01-01T00:00:00.000Z', ...o,
   }
 }
@@ -62,7 +63,10 @@ describe('endpoint 服务', () => {
       const eps = [makeEndpoint({ id: 2 }), makeEndpoint({ id: 1 })]
       mockDb.query.mockReturnValue(eps)
       expect(listEndpoints()).toEqual(eps)
-      expect(mockDb.query).toHaveBeenCalledWith('SELECT * FROM endpoint ORDER BY created_at DESC')
+      expect(mockDb.query).toHaveBeenCalledWith(`SELECT e.* FROM endpoint e 
+    LEFT JOIN (SELECT name, display_order as g_order FROM endpoint WHERE group_name = name AND group_name != '') g ON e.group_name = g.name 
+    WHERE e.group_name != e.name OR e.group_name = ''
+    ORDER BY g.g_order, e.group_name, e.display_order, e.created_at DESC`)
     })
     it('无登录端时返回空数组', () => {
       mockDb.query.mockReturnValue([])
@@ -169,6 +173,33 @@ describe('endpoint 服务', () => {
     it('导入失败计入 failed', () => {
       mockDb.transaction.mockImplementation(() => { throw new Error('DB error') })
       expect(importEndpoints(importData())).toEqual({ success: 0, failed: 1 })
+    })
+  })
+
+  describe('listDistinctGroups', () => {
+    it('返回去重后的分组列表', () => {
+      mockDb.query.mockReturnValue([{ group_name: '工作' }, { group_name: '个人' }])
+      expect(listDistinctGroups()).toEqual(['工作', '个人'])
+    })
+    it('无分组时返回空数组', () => {
+      mockDb.query.mockReturnValue([])
+      expect(listDistinctGroups()).toEqual([])
+    })
+  })
+
+  describe('group_name field', () => {
+    it('创建时可设置 group_name', () => {
+      const r = createEndpoint({ name: 'test', login_type: 'web', group_name: '工作' })
+      expect(r.group_name).toBe('工作')
+    })
+    it('创建时未设置则默认为空', () => {
+      const r = createEndpoint({ name: 'test', login_type: 'web' })
+      expect(r.group_name).toBe('')
+    })
+    it('更新 group_name', () => {
+      updateEndpoint(1, { group_name: '新分组' })
+      const sql: string = mockDb.run.mock.calls[0][0]
+      expect(sql).toContain('group_name')
     })
   })
 })

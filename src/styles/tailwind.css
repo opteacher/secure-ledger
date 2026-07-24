@@ -47,7 +47,7 @@ html.dark {
 @layer base {
   body {
     @apply bg-surface-page text-fg-primary antialiased;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'MiSans', system-ui, -apple-system, sans-serif;
   }
 
   /* Input base styles */

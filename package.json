@@ -39,8 +39,10 @@
   "author": "SecureLedger Team",
   "license": "MIT",
   "dependencies": {
+    "@ant-design/icons-vue": "^7.0.1",
     "extract-zip": "^2.0.1",
     "jose": "^5.2.0",
+    "misans": "^4.1.0",
     "pinia": "^2.1.7",
     "puppeteer-core": "^22.0.0",
     "puppeteer-core-legacy": "npm:puppeteer-core@^13.7.0",
@@ -50,7 +52,8 @@
     "tesseract.js": "^5.1.1",
     "uuid": "^9.0.0",
     "vue": "^3.4.21",
-    "vue-router": "^4.3.0"
+    "vue-router": "^4.3.0",
+    "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

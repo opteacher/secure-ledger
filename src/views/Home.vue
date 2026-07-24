@@ -103,113 +103,71 @@
           </router-link>
         </div>
 
-        <!-- Endpoint List -->
-        <div v-else class="grid gap-4">
-          <div
-            v-for="endpoint in filteredEndpoints"
-            :key="endpoint.id"
-            :class="[
-              'card-hover group card-ribbon-wrapper',
-              getTokenStatus(endpoint) === 'invalid' ? 'card-invalid' : ''
-            ]"
-            @click="!isTokenEndpoint(endpoint) && router.push(`/endpoint/${endpoint.id}`)"
+        <!-- Unified Draggable List -->
+        <div v-else>
+          <draggable
+            v-model="allRows"
+            :item-key="(row: RowItem) => '_type' in row ? 'g_' + row.name : 'e_' + row.id"
+            :group="{ name: 'endpoints', pull: true, put: true }"
+            :move="onMove"
+            @end="persistOrder()"
+            ghost-class="opacity-50"
+            class="grid gap-4"
           >
-            <!-- Ribbon badge for token endpoints -->
-            <div 
-              v-if="isTokenEndpoint(endpoint)" 
-              :class="['card-ribbon', getTokenStatus(endpoint) === 'invalid' ? 'card-ribbon-invalid' : '']"
-            >
-              {{ getTokenRibbonText(endpoint) }}
-            </div>
-            
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-100 to-primary-50 flex items-center justify-center text-primary-600 font-medium text-lg">
-                  {{ endpoint.icon || endpoint.name.charAt(0).toUpperCase() }}
-                </div>
-                <div>
-                  <h3 class="font-semibold text-fg-primary">{{ endpoint.name }}</h3>
-                  <p class="text-sm text-fg-muted flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="endpoint.login_type === 'web' ? 'bg-primary-400' : 'bg-success-500'"></span>
-                    {{ endpoint.login_type === 'web' ? '网页登录' : 'SSH登录' }}
-                  </p>
-                </div>
-              </div>
-
-              <!-- 右侧操作区 -->
-              <div class="flex items-center gap-2">
-                <!-- 登录执行中：始终显示（不受 hover 控制） -->
-                <template v-if="executingId === endpoint.id">
-                  <span class="text-sm text-primary-600 animate-pulse flex items-center">
-                    <svg class="w-4 h-4 animate-spin mr-1" fill="none" viewBox="0 0 24 24">
-                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    登录中……
-                  </span>
-                  <button
-                    @click.stop="cancelExecution()"
-                    class="btn-secondary text-sm bg-red-500 hover:bg-red-600 text-white border-red-500 hover:border-red-600"
-                  >
-                    停止
-                  </button>
-                </template>
-                
-                <!-- 未执行时：操作按钮需要 hover 显示 -->
-                <template v-else>
-                  <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      @click.stop="executeLogin(endpoint)"
-                      class="btn-primary text-sm"
-                    >
-                      执行登录
-                    </button>
-                <!-- 分享按钮 - 仅对非Token端点显示 -->
-                    <button
-                      v-if="!isTokenEndpoint(endpoint)"
-                      @click.stop="showShareDialog(endpoint)"
-                      class="btn-secondary text-sm"
-                      title="分享"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                      </svg>
-                      分享
-                    </button>
-                    <!-- 上传按钮组 -->
-                    <div v-if="endpoint.login_type === 'ssh'" class="flex">
-                      <button
-                        @click.stop="startUpload(endpoint, false)"
-                        class="btn-secondary text-sm rounded-r-none border-r-0"
-                        title="上传文件"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                        </svg>
-                        上传文件
-                      </button>
-                      <button
-                        @click.stop="startUpload(endpoint, true)"
-                        class="btn-secondary text-sm rounded-l-none"
-                        title="上传文件夹"
-                      >
-                        夹
-                      </button>
-                    </div>
-                    <button
-                      @click.stop="confirmDelete(endpoint.id)"
-                      class="btn-icon text-error-500 hover:text-error-600 hover:bg-error-50"
-                      title="删除"
-                    >
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
+            <template #item="{ element: row }">
+              <div>
+                <!-- Group Card -->
+                <div v-if="row._type === 'group'" class="space-y-4" data-type="group">
+                <div
+                  class="card-hover flex items-center gap-4 cursor-pointer select-none"
+                  :class="dragOverGroup === row.name ? 'ring-2 ring-primary-400 border-primary-400' : ''"
+                  @click="toggleGroup(row.name)"
+                >
+                  <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-100 to-primary-50 flex items-center justify-center text-primary-600">
+                    <svg v-if="expandedGroups.has(row.name)" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V6h5.17l2 2H20v10z" /></svg>
+                    <svg v-else class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" /></svg>
                   </div>
-                </template>
+                  <div class="flex-1"><h3 class="font-semibold text-fg-primary">{{ row.name }}</h3><p class="text-sm text-fg-muted">{{ row.endpoints.length }} 个</p></div>
+                  <svg class="w-5 h-5 text-fg-muted transition-transform duration-200" :class="expandedGroups.has(row.name) ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                </div>
+                <div v-show="expandedGroups.has(row.name)" class="pl-4 mt-4">
+                  <draggable
+                    v-model="row.endpoints"
+                    :group="{ name: 'endpoints', pull: true, put: true }"
+                    item-key="id"
+                    @end="persistOrder()"
+                    ghost-class="opacity-50"
+                    class="grid gap-4"
+                  >
+                    <template #item="{ element: ep }">
+                      <div :class="endpointCardClass(ep)" @click="!isTokenEndpoint(ep) && router.push(`/endpoint/${ep.id}`)">
+                        <div v-if="isTokenEndpoint(ep)" :class="['card-ribbon', getTokenStatus(ep) === 'invalid' ? 'card-ribbon-invalid' : '']">{{ getTokenRibbonText(ep) }}</div>
+                        <div class="flex items-center justify-between">
+                          <div class="flex items-center gap-4"><EndpointIcon :icon="ep.icon" :name="ep.name" :size="48" /><div><h3 class="font-semibold text-fg-primary">{{ ep.name }}</h3><p class="text-sm text-fg-muted flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" :class="ep.login_type === 'web' ? 'bg-primary-400' : 'bg-success-500'"></span>{{ ep.login_type === 'web' ? '网页登录' : 'SSH登录' }}</p></div></div>
+                          <div class="flex items-center gap-2">
+                            <template v-if="executingId === ep.id"><span class="text-sm text-primary-600 animate-pulse flex items-center"><svg class="w-4 h-4 animate-spin mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>登录中…</span><button @click.stop="cancelExecution()" class="btn-secondary text-sm bg-red-500 hover:bg-red-600 text-white">停止</button></template>
+                            <template v-else><div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button @click.stop="executeLogin(ep)" class="btn-primary text-sm">执行登录</button><button v-if="!isTokenEndpoint(ep)" @click.stop="showShareDialog(ep)" class="btn-secondary text-sm">分享</button><button @click.stop="confirmDelete(ep.id)" class="btn-icon text-error-500" title="删除"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button></div></template>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </draggable>
+                </div>
               </div>
-            </div>
-          </div>
+              <!-- Endpoint Card -->
+              <div v-else :class="endpointCardClass(row)" @click="!isTokenEndpoint(row) && router.push(`/endpoint/${row.id}`)">
+                <div v-if="isTokenEndpoint(row)" :class="['card-ribbon', getTokenStatus(row) === 'invalid' ? 'card-ribbon-invalid' : '']">{{ getTokenRibbonText(row) }}</div>
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-4"><EndpointIcon :icon="row.icon" :name="row.name" :size="48" /><div><h3 class="font-semibold text-fg-primary">{{ row.name }}</h3><p class="text-sm text-fg-muted flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full" :class="row.login_type === 'web' ? 'bg-primary-400' : 'bg-success-500'"></span>{{ row.login_type === 'web' ? '网页登录' : 'SSH登录' }}</p></div></div>
+                  <div class="flex items-center gap-2">
+                    <template v-if="executingId === row.id"><span class="text-sm text-primary-600 animate-pulse flex items-center"><svg class="w-4 h-4 animate-spin mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>登录中…</span><button @click.stop="cancelExecution()" class="btn-secondary text-sm bg-red-500 hover:bg-red-600 text-white">停止</button></template>
+                    <template v-else><div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button @click.stop="executeLogin(row)" class="btn-primary text-sm">执行登录</button><button v-if="!isTokenEndpoint(row)" @click.stop="showShareDialog(row)" class="btn-secondary text-sm">分享</button><button @click.stop="confirmDelete(row.id)" class="btn-icon text-error-500" title="删除"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button></div></template>
+                  </div>
+                </div>
+              </div>
+              </div>
+            </template>
+          </draggable>
         </div>
       </div>
     </main>
@@ -1084,6 +1042,8 @@ import UploadModal from '../components/UploadModal.vue'
 import ShareEndpointDialog from '../components/ShareEndpointDialog.vue'
 import ImportEndpointDialog from '../components/ImportEndpointDialog.vue'
 import TokenResultDialog from '../components/TokenResultDialog.vue'
+import EndpointIcon from '../components/EndpointIcon.vue'
+import draggable from 'vuedraggable'
 
 const router = useRouter()
 const endpointStore = useEndpointStore()
@@ -1117,37 +1077,96 @@ const searchKeyword = ref('')
 // 缓存的端点 URL 映射（用于搜索）
 const endpointUrlsCache = ref<Map<number, string[]>>(new Map())
 
-// 根据搜索关键词过滤登录端
-const filteredEndpoints = computed(() => {
-  const keyword = searchKeyword.value.trim().toLowerCase()
-  if (!keyword) {
-    return endpoints.value
+// 分组折叠状态
+const expandedGroups = ref<Set<string>>(new Set())
+const dragOverGroup = ref<string | null>(null)
+
+function toggleGroup(name: string) {
+  if (expandedGroups.value.has(name)) {
+    expandedGroups.value.delete(name)
+  } else {
+    expandedGroups.value.add(name)
   }
-  
-  return endpoints.value.filter(endpoint => {
-    // 匹配名称
-    if (endpoint.name.toLowerCase().includes(keyword)) {
-      return true
+}
+
+// 拖拽回调：分组卡只能同列表排序，不允许跨列表移动
+function onMove(evt: any) {
+  const isGroup = evt.dragged?.dataset?.type === 'group'
+  if (isGroup) {
+    return evt.from === evt.to
+  }
+  return true
+}
+
+// 统一有序列表：分组标记 + 未分组端点按 display_order 混排
+type RowItem = { _type: 'group', name: string, endpoints: Endpoint[] } | Endpoint
+const allRows = ref<RowItem[]>([])
+
+function syncRowsFromStore() {
+  const rows: RowItem[] = []
+  const groupMap = new Map<string, Endpoint[]>()
+  const ungrouped: Endpoint[] = []
+  for (const ep of endpoints.value) {
+    if (ep.group_name && ep.group_name === ep.name) continue // skip group markers
+    if (ep.group_name) {
+      if (!groupMap.has(ep.group_name)) groupMap.set(ep.group_name, [])
+      groupMap.get(ep.group_name)!.push(ep)
+    } else {
+      ungrouped.push(ep)
     }
-    
-    // 匹配登录类型
-    if (endpoint.login_type.toLowerCase().includes(keyword)) {
-      return true
-    }
-    
-    // 匹配缓存的 URL
-    const cachedUrls = endpointUrlsCache.value.get(endpoint.id)
-    if (cachedUrls) {
-      for (const url of cachedUrls) {
-        if (url.toLowerCase().includes(keyword)) {
-          return true
-        }
-      }
-    }
-    
-    return false
+  }
+  // Get group markers to determine group order
+  const markers = endpoints.value.filter(e => e.group_name && e.group_name === e.name && e.group_name !== '')
+  markers.sort((a, b) => a.display_order - b.display_order)
+  const markerOrder = new Map(markers.map((m, i) => [m.name, i]))
+  // Build ordered list: groups by marker order, ungrouped at default position
+  const groupInserted = new Set<string>()
+  // Scan endpoints in display_order to find where groups appear
+  const sorted = [...endpoints.value].filter(e => !(e.group_name === e.name && e.group_name !== ''))
+  sorted.sort((a, b) => {
+    const ao = markerOrder.get(a.group_name) ?? 9999
+    const bo = markerOrder.get(b.group_name) ?? 9999
+    if (ao !== bo) return ao - bo
+    return a.display_order - b.display_order
   })
-})
+  for (const ep of sorted) {
+    if (ep.group_name && !groupInserted.has(ep.group_name)) {
+      groupInserted.add(ep.group_name)
+      const endpoints = groupMap.get(ep.group_name) || []
+      rows.push({ _type: 'group', name: ep.group_name, endpoints })
+    }
+    if (!ep.group_name) {
+      rows.push(ep)
+    }
+  }
+  allRows.value = rows
+}
+watch(endpoints, syncRowsFromStore, { immediate: true })
+
+// 兼容旧代码的 filteredEndpoints（部分引用需要）
+const filteredEndpoints = computed(() => endpoints.value)
+
+function persistOrder() {
+  const items: Array<{ id: number; group_name: string; display_order: number }> = []
+  let order = 0
+  for (const row of allRows.value) {
+    if ('_type' in row) {
+      for (const ep of (row as any).endpoints) {
+        items.push({ id: ep.id, group_name: row.name, display_order: order++ })
+      }
+    } else {
+      items.push({ id: (row as Endpoint).id, group_name: '', display_order: order++ })
+    }
+  }
+  endpointApi.reorder(items)
+}
+
+function endpointCardClass(endpoint: typeof endpoints.value[0]) {
+  return [
+    'card-hover group card-ribbon-wrapper cursor-grab active:cursor-grabbing',
+    getTokenStatus(endpoint) === 'invalid' ? 'card-invalid' : ''
+  ]
+}
 
 // 当搜索关键词变化时，异步加载端点 URL
 watch(searchKeyword, async (keyword) => {

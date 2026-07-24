@@ -11,7 +11,10 @@ export interface EndpointFull extends Endpoint {
 
 // 获取所有登录端
 export function listEndpoints(): Endpoint[] {
-  return db.query<Endpoint>('SELECT * FROM endpoint ORDER BY created_at DESC')
+  return db.query<Endpoint>(`SELECT e.* FROM endpoint e 
+    LEFT JOIN (SELECT name, display_order as g_order FROM endpoint WHERE group_name = name AND group_name != '') g ON e.group_name = g.name 
+    WHERE e.group_name != e.name OR e.group_name = ''
+    ORDER BY g.g_order, e.group_name, e.display_order, e.created_at DESC`)
 }
 
 // 获取单个登录端
@@ -49,14 +52,18 @@ export function createEndpoint(data: {
   name: string
   icon?: string
   login_type: 'web' | 'ssh'
+  group_name?: string
 }): Endpoint {
   const now = new Date().toISOString()
   const result = db.run(
-    `INSERT INTO endpoint (name, icon, login_type, share_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-    [data.name, data.icon || '', data.login_type, '', now, now]
+    `INSERT INTO endpoint (name, icon, login_type, group_name, display_order, share_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [data.name, data.icon || '', data.login_type, data.group_name || '', data.display_order ?? 0, '', now, now]
   )
 
   const endpointId = result.lastInsertRowid as number
+
+  // 确保分组标记记录存在
+  if (data.group_name) ensureGroupExists(data.group_name)
 
   // v1.0: 为新端点生成子密钥对
   const version = getEncryptionVersion()
@@ -75,6 +82,8 @@ export function createEndpoint(data: {
     name: data.name,
     icon: data.icon || '',
     login_type: data.login_type,
+    group_name: data.group_name || '',
+    display_order: 0,
     share_token: '',
     created_at: now,
     updated_at: now
@@ -98,6 +107,14 @@ export function updateEndpoint(id: number, updates: Partial<Endpoint>): boolean 
     fields.push('login_type = ?')
     values.push(updates.login_type)
   }
+  if (updates.group_name !== undefined) {
+    fields.push('group_name = ?')
+    values.push(updates.group_name)
+  }
+  if (updates.display_order !== undefined) {
+    fields.push('display_order = ?')
+    values.push(updates.display_order)
+  }
 
   if (fields.length === 0) return false
 
@@ -105,6 +122,10 @@ export function updateEndpoint(id: number, updates: Partial<Endpoint>): boolean 
   values.push(id)
 
   db.run(`UPDATE endpoint SET ${fields.join(', ')} WHERE id = ?`, values)
+  if (updates.group_name !== undefined) {
+    ensureGroupExists(updates.group_name)
+    cleanupEmptyGroups()
+  }
   return true
 }
 
@@ -135,6 +156,58 @@ export function exportEndpoints(ids: number[]): EndpointFull[] {
   return ids.map(id => getEndpoint(id)).filter((e): e is EndpointFull => e !== null)
 }
 
+// 确保分组存在：无标记记录则自动创建
+export function ensureGroupExists(groupName: string): void {
+  if (!groupName) return
+  const exists = db.queryOne('SELECT id FROM endpoint WHERE group_name = name AND group_name = ?', [groupName])
+  if (!exists) {
+    const now = new Date().toISOString()
+    db.run(
+      `INSERT INTO endpoint (name, icon, login_type, group_name, display_order, share_token, created_at, updated_at)
+       VALUES (?, '', 'web', ?, (SELECT COALESCE(MAX(display_order), -1) + 1 FROM endpoint WHERE group_name = name AND group_name != ''), '', ?, ?)`,
+      [groupName, groupName, now, now])
+  }
+}
+
+// 清理空分组：无正式端点的分组标记记录自动删除
+export function cleanupEmptyGroups(): void {
+  db.run(`DELETE FROM endpoint WHERE group_name = name AND group_name != ''
+    AND group_name NOT IN (SELECT DISTINCT group_name FROM endpoint WHERE group_name != name AND group_name != '')`)
+}
+export function listDistinctGroups(): string[] {
+  const rows = db.query<{ group_name: string }>(
+    `SELECT DISTINCT group_name FROM endpoint WHERE group_name != '' AND group_name != name ORDER BY group_name`
+  )
+  return rows.map(r => r.group_name)
+}
+
+// 批量更新端点排序（分组标记记录由前端维护，此处仅更新 display_order）
+export function reorderEndpoints(items: Array<{ id: number; group_name: string; display_order: number }>): void {
+  for (const item of items) {
+    db.run('UPDATE endpoint SET group_name = ?, display_order = ? WHERE id = ?',
+      [item.group_name, item.display_order, item.id])
+  }
+  // Sync group marker ordering: each unique group's marker gets sequential display_order
+  let gOrder = 0
+  const seen = new Set<string>()
+  for (const item of items) {
+    if (item.group_name && !seen.has(item.group_name)) {
+      seen.add(item.group_name)
+      const marker = db.queryOne<{ id: number }>(
+        'SELECT id FROM endpoint WHERE group_name = name AND group_name = ?', [item.group_name])
+      if (marker) {
+        db.run('UPDATE endpoint SET display_order = ? WHERE id = ?', [gOrder++, marker.id])
+      } else {
+        ensureGroupExists(item.group_name)
+        const newMarker = db.queryOne<{ id: number }>(
+          'SELECT id FROM endpoint WHERE group_name = name AND group_name = ?', [item.group_name])
+        if (newMarker) db.run('UPDATE endpoint SET display_order = ? WHERE id = ?', [gOrder++, newMarker.id])
+      }
+    }
+  }
+  cleanupEmptyGroups()
+}
+
 // 导入登录端
 export function importEndpoints(data: EndpointFull[]): { success: number; failed: number } {
   let success = 0
@@ -145,8 +218,8 @@ export function importEndpoints(data: EndpointFull[]): { success: number; failed
       db.transaction(() => {
         // 创建登录端
         const endpointResult = db.run(
-          `INSERT INTO endpoint (name, icon, login_type) VALUES (?, ?, ?)`,
-          [endpointData.name, endpointData.icon, endpointData.login_type]
+          `INSERT INTO endpoint (name, icon, login_type, group_name) VALUES (?, ?, ?, ?)`,
+          [endpointData.name, endpointData.icon, endpointData.login_type, endpointData.group_name || '']
         )
         const endpointId = endpointResult.lastInsertRowid as number
 
@@ -160,8 +233,8 @@ export function importEndpoints(data: EndpointFull[]): { success: number; failed
 
           for (const slotData of pageData.slots) {
             db.run(
-              `INSERT INTO slot (page_id, order_index, name, element_xpath, action_type, value, is_encrypted, timeout) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-              [pageId, slotData.order_index, slotData.name || '', slotData.element_xpath, slotData.action_type, slotData.value, slotData.is_encrypted ? 1 : 0, slotData.timeout]
+              `INSERT INTO slot (page_id, order_index, name, element_xpath, action_type, value, is_encrypted, timeout, output_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [pageId, slotData.order_index, slotData.name || '', slotData.element_xpath, slotData.action_type, slotData.value, slotData.is_encrypted ? 1 : 0, slotData.timeout, slotData.output_key || '']
             )
           }
         }

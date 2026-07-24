@@ -57,6 +57,8 @@ export function registerAllIPCHandlers(): void {
   registerHandler('endpoint:importToken', handleEndpointImportToken)
   registerHandler('endpoint:checkTokenPermission', handleEndpointCheckTokenPermission)
   registerHandler('endpoint:getTokenStatus', handleEndpointGetTokenStatus)
+  registerHandler('endpoint:getGroups', handleEndpointGetGroups)
+  registerHandler('endpoint:reorder', handleEndpointReorder)
   
   // 步骤页相关
   registerHandler('page:list', handlePageList)
@@ -84,6 +86,7 @@ export function registerAllIPCHandlers(): void {
   registerHandler('captcha:recognize', handleCaptchaRecognize)
   registerHandler('captcha:getConfig', handleCaptchaGetConfig)
   registerHandler('captcha:setConfig', handleCaptchaSetConfig)
+  registerHandler('iconfont:search', handleIconfontSearch)
   
   // SSH 文件上传
   registerHandler('ssh:upload', handleSSHUpload)
@@ -256,6 +259,14 @@ function handleEndpointDelete(id: number) {
   return endpointService.deleteEndpoint(id)
 }
 
+function handleEndpointGetGroups() {
+  return endpointService.listDistinctGroups()
+}
+
+function handleEndpointReorder(data: Array<{ id: number; group_name: string; display_order: number }>) {
+  endpointService.reorderEndpoints(data)
+}
+
 function handleEndpointExport(ids: number[]) {
   return endpointService.exportEndpoints(ids)
 }
@@ -359,6 +370,42 @@ function handleCaptchaGetConfig() {
 function handleCaptchaSetConfig(data: { method: 'tesseract' | 'muggle' }) {
   ocrConfig.setOcrMethod(data.method)
   return ocrConfig.getOcrConfig()
+}
+
+async function handleIconfontSearch(data: { q: string; page?: number; pageSize?: number }): Promise<{
+  icons: Array<{ id: number; name: string; show_svg: string; font_class: string }>
+  pagination: { page: number; pageSize: number; total: number }
+}> {
+  const { q, page = 1, pageSize = 48 } = data
+  const params = new URLSearchParams({
+    q, page: String(page), pageSize: String(pageSize),
+    sortType: 'updated_at', sType: '', fromCollection: '-1', fills: '',
+    t: String(Date.now()), ctoken: 'null'
+  })
+
+  try {
+    console.log('[iconfont:search] query:', q, 'page:', page)
+    const response = await fetch('https://www.iconfont.cn/api/icon/search.json', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      body: params.toString()
+    })
+    console.log('[iconfont:search] status:', response.status)
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const json = await response.json()
+    console.log('[iconfont:search] code:', json.code, 'count:', json.data?.count)
+    if (json.code !== 200 || !json.data) throw new Error(json.message || 'Iconfont API returned error')
+    return {
+      icons: json.data.icons || [],
+      pagination: { page, pageSize, total: json.data.count || 0 }
+    }
+  } catch (e: any) {
+    console.error('[iconfont:search] Failed:', e.message)
+    throw new Error(`iconfont 搜索失败: ${e.message}`)
+  }
 }
 
 // ============ 登录执行处理器 ============

@@ -28,7 +28,9 @@ export interface Endpoint {
   name: string
   icon: string
   login_type: 'web' | 'ssh'
-  share_token: string  // JWT token for shared endpoints (empty = normal)
+  group_name: string
+  display_order: number
+  share_token: string
   created_at: string
   updated_at: string
 }
@@ -108,7 +110,12 @@ export const endpointApi = {
     invoke<{ allowed: boolean; reason?: string }>('endpoint:checkTokenPermission', { id }),
   
   getTokenStatus: (id: number) => 
-    invoke<TokenStatus>('endpoint:getTokenStatus', { id })
+    invoke<TokenStatus>('endpoint:getTokenStatus', { id }),
+  
+  getGroups: () => invoke<string[]>('endpoint:getGroups'),
+  
+  reorder: (items: Array<{ id: number; group_name: string; display_order: number }>) =>
+    invoke<void>('endpoint:reorder', items)
 }
 
 // ============ 步骤页 API ============
@@ -183,6 +190,17 @@ export const captchaApi = {
 
   setConfig: (method: 'tesseract' | 'muggle') =>
     invoke<OcrConfig>('captcha:setConfig', { method }),
+}
+
+// ============ Iconfont 搜索 API ============
+export interface IconfontSearchResult {
+  icons: Array<{ id: number; name: string; show_svg: string; font_class: string }>
+  pagination: { page: number; pageSize: number; total: number }
+}
+
+export const iconfontApi = {
+  search: (q: string, page?: number, pageSize?: number) =>
+    invoke<IconfontSearchResult>('iconfont:search', { q, page: page || 1, pageSize: pageSize || 48 }),
 }
 
 // ============ SSH API ============

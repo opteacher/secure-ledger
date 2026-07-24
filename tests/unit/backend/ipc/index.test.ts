@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // Mock ALL service imports (paths relative to THIS test file)
 // ============================================================
 vi.mock('../../../../electron/backend/services/account', () => ({ hasAccount: vi.fn(), createAccount: vi.fn(), loginAccount: vi.fn(), verifyToken: vi.fn(), changePassword: vi.fn() }))
-vi.mock('../../../../electron/backend/services/endpoint', () => ({ listEndpoints: vi.fn(), getEndpoint: vi.fn(), createEndpoint: vi.fn(), updateEndpoint: vi.fn(), deleteEndpoint: vi.fn(), exportEndpoints: vi.fn(), importEndpoints: vi.fn() }))
+vi.mock('../../../../electron/backend/services/endpoint', () => ({ listEndpoints: vi.fn(), getEndpoint: vi.fn(), createEndpoint: vi.fn(), updateEndpoint: vi.fn(), deleteEndpoint: vi.fn(), exportEndpoints: vi.fn(), importEndpoints: vi.fn(), listDistinctGroups: vi.fn(() => []), reorderEndpoints: vi.fn(), ensureGroupExists: vi.fn(), cleanupEmptyGroups: vi.fn() }))
 vi.mock('../../../../electron/backend/services/page', () => ({ listPages: vi.fn(), getPage: vi.fn(), createPage: vi.fn(), updatePage: vi.fn(), deletePage: vi.fn() }))
 vi.mock('../../../../electron/backend/services/slot', () => ({ listSlots: vi.fn(), getSlot: vi.fn(), createSlot: vi.fn(), updateSlot: vi.fn(), deleteSlot: vi.fn(), decryptSlotValueAuto: vi.fn() }))
 vi.mock('../../../../electron/backend/services/chrome', () => ({ detectChrome: vi.fn() }))
@@ -64,7 +64,7 @@ const ALL_EXPECTED_CHANNELS: string[] = [
   'account:hasAccount', 'account:create', 'account:login', 'account:verify', 'account:changePassword',
   'endpoint:list', 'endpoint:get', 'endpoint:create', 'endpoint:update', 'endpoint:delete',
   'endpoint:export', 'endpoint:import', 'endpoint:share', 'endpoint:importToken',
-  'endpoint:checkTokenPermission', 'endpoint:getTokenStatus',
+  'endpoint:checkTokenPermission', 'endpoint:getTokenStatus', 'endpoint:getGroups', 'endpoint:reorder',
   'page:list', 'page:get', 'page:create', 'page:update', 'page:delete',
   'slot:list', 'slot:get', 'slot:create', 'slot:update', 'slot:delete', 'slot:decryptValue',
   'chrome:detect',
@@ -93,9 +93,10 @@ const ALL_EXPECTED_CHANNELS: string[] = [
   'tokenReceiver:start', 'tokenReceiver:stop', 'tokenReceiver:status',
   'network:getLocalIPs',
   'captcha:recognize', 'captcha:getConfig', 'captcha:setConfig',
+  'iconfont:search',
 ]
 
-const EXPECTED_COUNT = 109
+const EXPECTED_COUNT = 112
 
 describe('registerAllIPCHandlers', () => {
   beforeEach(async () => {
@@ -164,10 +165,10 @@ describe('registerAllIPCHandlers', () => {
     registerAllIPCHandlers()
     expect(mockIpcMain.handle.mock.calls.map((c: any[]) => c[0]).filter((c: string) => c.startsWith('account:')).length).toBe(5)
   })
-  it('endpoint: 11', async () => {
+  it('endpoint: 13', async () => {
     const { registerAllIPCHandlers } = await import('../../../../electron/backend/ipc/index')
     registerAllIPCHandlers()
-    expect(mockIpcMain.handle.mock.calls.map((c: any[]) => c[0]).filter((c: string) => c.startsWith('endpoint:')).length).toBe(11)
+    expect(mockIpcMain.handle.mock.calls.map((c: any[]) => c[0]).filter((c: string) => c.startsWith('endpoint:')).length).toBe(13)
   })
   it('ssh: 12', async () => {
     const { registerAllIPCHandlers } = await import('../../../../electron/backend/ipc/index')

@@ -1,5 +1,5 @@
 OVERVIEW
-- UI layer: 9 Vue components for automation slots, picker, dialogs, and endpoint sharing.
+- UI layer: 12 Vue components for automation slots, picker, dialogs, endpoint icons, and endpoint sharing.
 WHERE TO LOOK
 - SlotCard.vue: renders a single automation slot card used inside SlotsPanel. Supports captcha action_type for displaying captcha recognition slots.
 - SlotsPanel.vue: container managing multiple SlotCard instances and related actions.
@@ -10,6 +10,9 @@ WHERE TO LOOK
 - ShareEndpointDialog.vue: dialog to share an endpoint with another user or team.
 - ImportEndpointDialog.vue: dialog to import endpoint configuration from file or clipboard.
 - TokenResultDialog.vue: dialog showing token or result after sharing or creation.
+- IconPickerModal.vue: icon picker modal with Ant Design icons, Iconfont search, and local file upload.
+- IconEditor.vue: endpoint icon editor (preview + open picker + reset). Placed in EndpointEdit header.
+- EndpointIcon.vue: renders endpoint icon (image URL, or first-letter fallback in gradient circle).
 CONVENTIONS
 - Pattern: Tailwind utility classes; no scoped CSS; Vue 3 script setup.
 - Communication: components emit events to parent to notify user actions; use defineEmits.
